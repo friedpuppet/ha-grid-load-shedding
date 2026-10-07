@@ -48,22 +48,30 @@
           "description": "This switch is turned off when the grid is lost (if it was on) and turned back on once the grid has been back for the restore delay.",
           "data": {
             "switch_entity": "Switch",
+            "shed_on_grid_loss": "Shed on grid loss",
+            "run_on_schedule": "Run on schedule",
             "window_start": "Window start",
             "window_end": "Window end"
           },
           "data_description": {
+            "shed_on_grid_loss": "Turn this load off when the grid is lost (if it was on) and back on once the grid returns. Also available as a switch on the load's device.",
+            "run_on_schedule": "Only matters with a schedule window: while off, the window is ignored and the load behaves like one without a window. Also available as a switch on the load's device.",
             "window_start": "Optional. If set (with the end), the load runs only in this window: turned on at the start, off at the end, never restored outside it. Leave both empty to keep it on whenever there is grid.",
             "window_end": "May be earlier than the start (window crosses midnight)."
           }
         },
         "reconfigure": {
-          "title": "Schedule window",
-          "description": "Schedule window for {load}. Clear both fields to remove the window.",
+          "title": "Load settings",
+          "description": "Settings for {load}. Clear both window times to remove the schedule window.",
           "data": {
+            "shed_on_grid_loss": "Shed on grid loss",
+            "run_on_schedule": "Run on schedule",
             "window_start": "Window start",
             "window_end": "Window end"
           },
           "data_description": {
+            "shed_on_grid_loss": "Turn this load off when the grid is lost (if it was on) and back on once the grid returns. Also available as a switch on the load's device.",
+            "run_on_schedule": "Only matters with a schedule window: while off, the window is ignored and the load behaves like one without a window. Also available as a switch on the load's device.",
             "window_start": "Optional. If set (with the end), the load runs only in this window: turned on at the start, off at the end, never restored outside it. Leave both empty to keep it on whenever there is grid.",
             "window_end": "May be earlier than the start (window crosses midnight)."
           }

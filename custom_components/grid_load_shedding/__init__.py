@@ -16,6 +16,8 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_FALLBACK_ENTITY,
     CONF_HOLD_SECONDS,
+    CONF_RUN_ON_SCHEDULE,
+    CONF_SHED_ON_GRID_LOSS,
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
@@ -40,6 +42,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 class RuntimeData:
     monitor: GridMonitor
     shedder: Shedder
+    signature: tuple  # config that needs a reload when it changes; see _signature()
 
 
 type GridLoadSheddingConfigEntry = ConfigEntry[RuntimeData]
@@ -92,8 +95,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
         start, end = subentry.data.get(CONF_WINDOW_START), subentry.data.get(CONF_WINDOW_END)
         window = (dt_util.parse_time(start), dt_util.parse_time(end)) if start and end else None
         shedder.loads[subentry_id] = Load(subentry_id, entity_id, window)
+    _apply_flags(entry, shedder, startup=True)
 
-    entry.runtime_data = RuntimeData(monitor, shedder)
+    entry.runtime_data = RuntimeData(monitor, shedder, _signature(entry))
 
     # Entities restore their state (grid, flags, delay) before the logic starts acting.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -101,7 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
     shedder.async_start()
     entry.async_on_unload(monitor.async_stop)
     entry.async_on_unload(shedder.async_stop)
-    entry.async_on_unload(entry.add_update_listener(_async_reload))
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
 
 
@@ -110,6 +114,36 @@ async def async_unload_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigE
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _async_reload(hass: HomeAssistant, entry: GridLoadSheddingConfigEntry) -> None:
-    """Options changed or a load was added/removed."""
+def _signature(entry: GridLoadSheddingConfigEntry) -> tuple:
+    """Everything except the per-load flags; a change here needs a reload."""
+    return (
+        tuple(sorted(entry.options.items())),
+        tuple(
+            sorted(
+                (sid, sub.data.get(CONF_SWITCH_ENTITY), sub.data.get(CONF_WINDOW_START), sub.data.get(CONF_WINDOW_END))
+                for sid, sub in entry.subentries.items()
+            )
+        ),
+    )
+
+
+def _apply_flags(entry: GridLoadSheddingConfigEntry, shedder: Shedder, startup: bool = False) -> None:
+    """Copy the per-load flags from subentry data (the source of truth) into the shedder."""
+    for load_id in shedder.loads:
+        data = entry.subentries[load_id].data
+        shedder.enabled[load_id] = data.get(CONF_SHED_ON_GRID_LOSS, True)
+        scheduled = data.get(CONF_RUN_ON_SCHEDULE, True)
+        if startup:
+            shedder.scheduled[load_id] = scheduled
+        else:
+            shedder.async_set_scheduled(load_id, scheduled)  # may start the load inside its window
+
+
+async def _async_entry_updated(hass: HomeAssistant, entry: GridLoadSheddingConfigEntry) -> None:
+    """Options or loads changed: apply flag-only changes live, reload for anything else."""
+    data = entry.runtime_data
+    if _signature(entry) == data.signature:
+        _apply_flags(entry, data.shedder)
+        data.shedder.async_notify()
+        return
     await hass.config_entries.async_reload(entry.entry_id)

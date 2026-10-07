@@ -22,6 +22,8 @@ from homeassistant.helpers import entity_registry as er, selector
 from .const import (
     CONF_FALLBACK_ENTITY,
     CONF_HOLD_SECONDS,
+    CONF_RUN_ON_SCHEDULE,
+    CONF_SHED_ON_GRID_LOSS,
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
@@ -99,6 +101,21 @@ def _window_schema(defaults: dict[str, Any]) -> dict:
     }
 
 
+def _flags_schema(defaults: dict[str, Any]) -> dict:
+    """Per-load flags (also shown as switches on the load's device)."""
+    return {
+        vol.Required(CONF_SHED_ON_GRID_LOSS, default=defaults.get(CONF_SHED_ON_GRID_LOSS, True)): selector.BooleanSelector(),
+        vol.Required(CONF_RUN_ON_SCHEDULE, default=defaults.get(CONF_RUN_ON_SCHEDULE, True)): selector.BooleanSelector(),
+    }
+
+
+def _flags_data(user_input: dict[str, Any]) -> dict[str, bool]:
+    return {
+        CONF_SHED_ON_GRID_LOSS: user_input.get(CONF_SHED_ON_GRID_LOSS, True),
+        CONF_RUN_ON_SCHEDULE: user_input.get(CONF_RUN_ON_SCHEDULE, True),
+    }
+
+
 def _window_data(user_input: dict[str, Any], errors: dict[str, str]) -> dict[str, str]:
     """Validate the window fields; return the data to store (empty = no window)."""
     start, end = user_input.get(CONF_WINDOW_START), user_input.get(CONF_WINDOW_END)
@@ -131,7 +148,9 @@ class LoadSubentryFlow(ConfigSubentryFlow):
                 state = self.hass.states.get(entity_id)
                 title = (state.name if state else None) or entity_id
                 return self.async_create_entry(
-                    title=title, data={CONF_SWITCH_ENTITY: ref, **window}, unique_id=ref
+                    title=title,
+                    data={CONF_SWITCH_ENTITY: ref, **_flags_data(user_input), **window},
+                    unique_id=ref,
                 )
 
         existing = [
@@ -145,23 +164,26 @@ class LoadSubentryFlow(ConfigSubentryFlow):
                 vol.Required(CONF_SWITCH_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="switch", exclude_entities=existing)
                 ),
+                **_flags_schema(user_input or {}),
                 **_window_schema(user_input or {}),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Change (or clear) the schedule window."""
+        """Change the load's flags and its schedule window (clear both times to remove it)."""
         subentry = self._get_reconfigure_subentry()
         errors: dict[str, str] = {}
         if user_input is not None:
             window = _window_data(user_input, errors)
             if not errors:
-                data = {CONF_SWITCH_ENTITY: subentry.data[CONF_SWITCH_ENTITY], **window}
+                data = {CONF_SWITCH_ENTITY: subentry.data[CONF_SWITCH_ENTITY], **_flags_data(user_input), **window}
                 return self.async_update_and_abort(self._get_entry(), subentry, data=data)
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=vol.Schema(_window_schema(user_input or dict(subentry.data))),
+            data_schema=vol.Schema(
+                {**_flags_schema(user_input or dict(subentry.data)), **_window_schema(user_input or dict(subentry.data))}
+            ),
             errors=errors,
             description_placeholders={"load": subentry.title},
         )

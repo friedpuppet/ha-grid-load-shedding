@@ -100,7 +100,7 @@ class Shedder:
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
-        """Called whenever the shed list changes."""
+        """Called whenever the shed list or the per-load flags change."""
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
 
@@ -257,5 +257,9 @@ class Shedder:
             self.missed = missed
         # Delayed write also gets flushed by Store on Home Assistant shutdown.
         self._store.async_delay_save(self._data, 1)
+        self.async_notify()
+
+    @callback
+    def async_notify(self) -> None:
         for listener in list(self._listeners):
             listener()

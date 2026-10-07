@@ -19,6 +19,8 @@ SUBENTRY_LOAD: Final = "load"
 CONF_SWITCH_ENTITY: Final = "switch_entity"
 CONF_WINDOW_START: Final = "window_start"  # "HH:MM:SS", optional
 CONF_WINDOW_END: Final = "window_end"
+CONF_SHED_ON_GRID_LOSS: Final = "shed_on_grid_loss"  # bool, default True
+CONF_RUN_ON_SCHEDULE: Final = "run_on_schedule"  # bool, default True; only used with a window
 
 # Bus events fired for other automations (Telegram etc.)
 EVENT_SHED: Final = f"{DOMAIN}_shed"

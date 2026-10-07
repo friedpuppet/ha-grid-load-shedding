@@ -20,8 +20,10 @@ don't drain the battery, and turns the same ones back on once the grid has been 
 
 ## What it does with loads
 
-Add loads under the integration's entry with **Add load**: pick any `switch`. Each load gets a
-**Shed on grid loss** switch on the load's own device, on by default.
+Add loads under the integration's entry with **Add load**: pick any `switch`. All per-load settings live
+in the load's dialog (**Add load** / **Reconfigure**): **Shed on grid loss** (default on), the optional
+schedule window, and **Run on schedule**. The two flags also appear as switches on the load's own device.
+Dialog and switches edit the same setting, so they are always in sync.
 
 - **Grid goes from on to off**: every load whose flag is on and which is currently on gets turned off and
   remembered. Loads that were already off stay off and are not remembered.
@@ -32,8 +34,8 @@ Add loads under the integration's entry with **Add load**: pick any `switch`. Ea
 ### Schedule window (optional, per load)
 
 A load can also get a schedule window, e.g. a boiler that heats 01:00–07:00. Set it when adding the
-load or later with **Reconfigure**; clear both fields to remove it. A load with a window gets a
-**Run on schedule** switch, on by default. While that switch is on:
+load or later with **Reconfigure**; clear both times to remove it. A load with a window also gets a
+**Run on schedule** switch, on by default. While **Run on schedule** is on:
 
 | Event | Action |
 |---|---|

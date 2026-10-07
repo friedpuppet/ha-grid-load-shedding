@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.2.1** (GitHub release + tag; v0.1.0 had no schedule windows). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.3.0** (GitHub release + tag; v0.1.0 had no schedule windows). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -74,6 +74,15 @@ sensor on this HA instance (see `../electricity.md`).
 - Time-jump gotcha in tests: `async_fire_time_changed` after a big jump fires stale
   `async_track_time_change` triggers late (see `test_window_crossing_midnight`). Real time doesn't jump,
   so don't "fix" it in the code.
+- **Per-load flags** (`shed_on_grid_loss`, `run_on_schedule`, default True) live in **subentry data**,
+  the single source of truth. The user wanted every per-load setting in the load's Reconfigure dialog
+  *and* as device switches, kept in sync.
+  - The switches write via `async_update_subentry`.
+  - The update listener compares `_signature(entry)` (options + switch/window per subentry). If only flags
+    changed, it applies them live (`_apply_flags` + `shedder.async_notify()`) **without a reload**, so
+    restore timers survive a dashboard toggle. Anything else reloads.
+  - The v0.2.x → v0.3.0 migration: if the key is missing from the subentry, the switch writes its restored
+    entity state into it once.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
