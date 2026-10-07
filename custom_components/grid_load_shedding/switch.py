@@ -1,4 +1,5 @@
-"""Per-load switches: "Shed on grid loss" for every load, "Run on schedule" for loads with a window.
+"""Per-load switches: "Shed on grid loss" for every load, "Run on schedule" for loads with a window,
+and "Sound notifications" for every sound notification.
 
 The source of truth is the load's subentry data (also editable in the load's
 Reconfigure dialog); these switches show and change it. A flag-only change is
@@ -15,7 +16,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import GridLoadSheddingConfigEntry
-from .const import CONF_RUN_ON_SCHEDULE, CONF_SHED_ON_GRID_LOSS
+from .announcer import Announcement, Announcer
+from .const import CONF_ENABLED, CONF_RUN_ON_SCHEDULE, CONF_SHED_ON_GRID_LOSS
 from .shedder import Load, Shedder
 
 
@@ -30,6 +32,12 @@ async def async_setup_entry(
         if load.window is not None:
             entities.append(ScheduleSwitch(hass, entry, shedder, load))
         async_add_entities(entities, config_subentry_id=load.id)
+    announcer = entry.runtime_data.announcer
+    for announcement in announcer.announcements.values():
+        async_add_entities(
+            [AnnouncementSwitch(hass, entry, shedder, announcer, announcement)],
+            config_subentry_id=announcement.id,
+        )
 
 
 class LoadSwitch(SwitchEntity, RestoreEntity):
@@ -116,3 +124,59 @@ class ScheduleSwitch(LoadSwitch):
     def extra_state_attributes(self) -> dict[str, str]:
         start, end = self._load.window
         return {"window_start": start.isoformat(), "window_end": end.isoformat()}
+
+
+class AnnouncementSwitch(SwitchEntity):
+    """Whether this media player announces grid loss and return (mirrors the subentry flag)."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:bullhorn-outline"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: GridLoadSheddingConfigEntry,
+        shedder: Shedder,
+        announcer: Announcer,
+        announcement: Announcement,
+    ) -> None:
+        self._entry = entry
+        self._shedder = shedder  # its listeners hear every live flag change
+        self._announcer = announcer
+        self._announcement = announcement
+        self._attr_unique_id = f"{announcement.id}_{CONF_ENABLED}"
+        self._attr_translation_key = "announce"
+        self.device_entry = async_entity_id_to_device(hass, announcement.entity_id)
+        if self.device_entry is None:
+            self._attr_translation_key = "announce_named"
+            self._attr_translation_placeholders = {"player": entry.subentries[announcement.id].title}
+
+    @property
+    def is_on(self) -> bool:
+        return self._announcer.enabled.get(self._announcement.id, True)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        if self._announcement.window is None:
+            return None
+        start, end = self._announcement.window
+        return {"window_start": start.isoformat(), "window_end": end.isoformat()}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self._shedder.async_add_listener(self._on_change))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._write(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._write(False)
+
+    def _write(self, value: bool) -> None:
+        subentry = self._entry.subentries[self._announcement.id]
+        self.hass.config_entries.async_update_subentry(
+            self._entry, subentry, data={**subentry.data, CONF_ENABLED: value}
+        )
+
+    @callback
+    def _on_change(self) -> None:
+        self.async_write_ha_state()

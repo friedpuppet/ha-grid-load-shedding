@@ -1,6 +1,6 @@
 [project]
 name = "ha-grid-load-shedding"
-version = "0.3.0"
+version = "0.4.0"
 description = "Home Assistant integration: detect utility-grid loss and shed/restore loads"
 requires-python = ">=3.14.2"
 

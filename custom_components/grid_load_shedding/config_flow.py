@@ -20,7 +20,15 @@ from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er, selector
 
 from .const import (
+    CONF_ENABLED,
     CONF_FALLBACK_ENTITY,
+    CONF_MEDIA_PLAYER,
+    CONF_SOUND_LOST,
+    CONF_SOUND_RESTORED,
+    CONF_VOLUME,
+    DEFAULT_ANNOUNCE_WINDOW,
+    DEFAULT_VOLUME,
+    SUBENTRY_ANNOUNCEMENT,
     CONF_HOLD_SECONDS,
     CONF_RUN_ON_SCHEDULE,
     CONF_SHED_ON_GRID_LOSS,
@@ -81,7 +89,7 @@ class GridLoadSheddingConfigFlow(ConfigFlow, domain=DOMAIN):
     @classmethod
     @callback
     def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
-        return {SUBENTRY_LOAD: LoadSubentryFlow}
+        return {SUBENTRY_LOAD: LoadSubentryFlow, SUBENTRY_ANNOUNCEMENT: AnnouncementSubentryFlow}
 
 
 class GridLoadSheddingOptionsFlow(OptionsFlow):
@@ -186,4 +194,88 @@ class LoadSubentryFlow(ConfigSubentryFlow):
             ),
             errors=errors,
             description_placeholders={"load": subentry.title},
+        )
+
+
+def _announcement_schema(defaults: dict[str, Any]) -> dict:
+    """Sounds, volume, window and the on/off flag of a sound notification."""
+    sound = selector.MediaSelector(selector.MediaSelectorConfig(accept=["audio/*"]))
+    return {
+        vol.Optional(CONF_SOUND_LOST, description={"suggested_value": defaults.get(CONF_SOUND_LOST)}): sound,
+        vol.Optional(CONF_SOUND_RESTORED, description={"suggested_value": defaults.get(CONF_SOUND_RESTORED)}): sound,
+        vol.Required(CONF_VOLUME, default=defaults.get(CONF_VOLUME, DEFAULT_VOLUME)): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0, max=100, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.SLIDER
+            )
+        ),
+        **_window_schema(defaults),
+        vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True)): selector.BooleanSelector(),
+    }
+
+
+def _announcement_data(user_input: dict[str, Any], errors: dict[str, str]) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        CONF_VOLUME: user_input.get(CONF_VOLUME, DEFAULT_VOLUME),
+        CONF_ENABLED: user_input.get(CONF_ENABLED, True),
+        **_window_data(user_input, errors),
+    }
+    for key in (CONF_SOUND_LOST, CONF_SOUND_RESTORED):
+        if sound := user_input.get(key):
+            data[key] = {k: sound[k] for k in ("media_content_id", "media_content_type")}
+    return data
+
+
+class AnnouncementSubentryFlow(ConfigSubentryFlow):
+    """Play a sound on a media player when the grid is lost or comes back."""
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        entry = self._get_entry()
+        ent_reg = er.async_get(self.hass)
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            entity_id = user_input[CONF_MEDIA_PLAYER]
+            reg_entry = ent_reg.async_get(entity_id)
+            ref = reg_entry.id if reg_entry else entity_id
+            data = _announcement_data(user_input, errors)
+            if any(s.unique_id == ref for s in entry.subentries.values()):
+                errors[CONF_MEDIA_PLAYER] = "already_configured"
+            if not errors:
+                state = self.hass.states.get(entity_id)
+                title = (state.name if state else None) or entity_id
+                return self.async_create_entry(title=title, data={CONF_MEDIA_PLAYER: ref, **data}, unique_id=ref)
+
+        existing = [
+            entity_id
+            for s in entry.subentries.values()
+            if s.subentry_type == SUBENTRY_ANNOUNCEMENT
+            and (entity_id := er.async_resolve_entity_id(ent_reg, s.data[CONF_MEDIA_PLAYER]))
+        ]
+        start, end = DEFAULT_ANNOUNCE_WINDOW
+        defaults = user_input or {CONF_WINDOW_START: start, CONF_WINDOW_END: end}
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_MEDIA_PLAYER): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="media_player", exclude_entities=existing)
+                ),
+                **_announcement_schema(defaults),
+            }
+        )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Change sounds, volume, window (clear both times for "always") and the on/off flag."""
+        subentry = self._get_reconfigure_subentry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = _announcement_data(user_input, errors)
+            if not errors:
+                return self.async_update_and_abort(
+                    self._get_entry(), subentry, data={CONF_MEDIA_PLAYER: subentry.data[CONF_MEDIA_PLAYER], **data}
+                )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(_announcement_schema(user_input or dict(subentry.data))),
+            errors=errors,
+            description_placeholders={"player": subentry.title},
         )

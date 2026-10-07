@@ -50,6 +50,24 @@ load or later with **Reconfigure**; clear both times to remove it. A load with a
 - With **Run on schedule** off, the load behaves like one without a window.
 - Windows may cross midnight (e.g. 23:00–02:00). Times are Home Assistant's local time.
 
+## Sound notifications
+
+Add **Add sound notification** under the entry and pick a `media_player` (e.g. VLC playing to a speaker on
+the Home Assistant box). Settings:
+
+- **Sound: grid lost** / **Sound: grid restored**: any audio from the media browser. Upload your own files in
+  *Media → Local media*. Leave one empty to stay silent for that event.
+- **Volume**: set on the player right before each sound.
+- **Play from / Play until**: sounds play only inside this window (local time, may cross midnight). Outside it
+  they are skipped, not delayed, so nights stay quiet. Defaults to 11:00–22:00; clear both for any time.
+- **Sound notifications**: on/off, also a switch on the player's device.
+
+A sound plays when the Grid sensor goes from on to off, and from off to on. Changes to or from `unavailable`
+(a dead voltage sensor and no fallback, or startup) are silent. The player's device also gets **Test sound**
+buttons, which play right away, ignoring the window and the switch.
+
+If grid loss should be heard, the speaker and the box running Home Assistant need to be on a UPS.
+
 ## Entities
 
 | Entity | Purpose |
@@ -60,6 +78,8 @@ load or later with **Reconfigure**; clear both times to remove it. A load with a
 | `button.<name>_restore_now` | Restore immediately. |
 | `switch.<load>_shed_on_grid_loss` | Per-load flag. |
 | `switch.<load>_run_on_schedule` | Only for loads with a window. The window is in the `window_start`/`window_end` attributes. |
+| `switch.<player>_sound_notifications` | Per sound notification. The window is in the attributes. |
+| `button.<player>_test_sound_grid_lost` / `_grid_restored` | Play the sound now. |
 
 ## Services and events
 
