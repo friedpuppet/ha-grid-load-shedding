@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Grid Load Shedding",
+        "description": "Detect utility-grid power from a voltage sensor (e.g. a hybrid inverter's grid input) and turn selected loads off while it is gone.",
+        "data": {
+          "name": "Name",
+          "voltage_entity": "Grid voltage sensor",
+          "threshold": "Grid present above",
+          "hold_seconds": "Hold state while the voltage sensor is unavailable",
+          "fallback_entity": "Fallback grid sensor"
+        },
+        "data_description": {
+          "voltage_entity": "Grid is present while this voltage is above the threshold.",
+          "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. 170 V in UPS mode).",
+          "hold_seconds": "Short dropouts of the voltage sensor keep the last state for this long.",
+          "fallback_entity": "Optional binary sensor that is on while the grid is present (e.g. ping of a device powered before the inverter). Used once the voltage sensor has been unavailable longer than the hold time."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This voltage sensor is already used by another entry."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "voltage_entity": "Grid voltage sensor",
+          "threshold": "Grid present above",
+          "hold_seconds": "Hold state while the voltage sensor is unavailable",
+          "fallback_entity": "Fallback grid sensor"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "load": {
+      "entry_type": "Load",
+      "initiate_flow": {
+        "user": "Add load"
+      },
+      "step": {
+        "user": {
+          "title": "Add load",
+          "description": "This switch is turned off when the grid is lost (if it was on) and turned back on once the grid has been back for the restore delay.",
+          "data": {
+            "switch_entity": "Switch"
+          }
+        }
+      },
+      "error": {
+        "already_configured": "This switch is already a load."
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "grid": { "name": "Grid" }
+    },
+    "sensor": {
+      "shed_loads": { "name": "Shed loads" }
+    },
+    "number": {
+      "restore_delay": { "name": "Restore delay" }
+    },
+    "button": {
+      "restore_now": { "name": "Restore now" }
+    },
+    "switch": {
+      "shed_on_grid_loss": { "name": "Shed on grid loss" },
+      "shed_on_grid_loss_named": { "name": "Shed {load} on grid loss" }
+    }
+  },
+  "services": {
+    "forget": {
+      "name": "Forget shed load",
+      "description": "Remove switches from the shed list so they are not turned back on when the grid returns.",
+      "fields": {
+        "entity_id": { "name": "Switches", "description": "Switches to forget." }
+      }
+    },
+    "restore_now": {
+      "name": "Restore now",
+      "description": "Turn every shed load back on immediately and clear the list."
+    }
+  }
+}

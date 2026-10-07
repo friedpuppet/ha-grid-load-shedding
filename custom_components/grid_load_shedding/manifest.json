@@ -1,0 +1,12 @@
+{
+  "domain": "grid_load_shedding",
+  "name": "Grid Load Shedding",
+  "codeowners": ["@friedpuppet"],
+  "config_flow": true,
+  "documentation": "https://github.com/friedpuppet/ha-grid-load-shedding",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/friedpuppet/ha-grid-load-shedding/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

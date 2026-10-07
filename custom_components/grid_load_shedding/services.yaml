@@ -1,0 +1,9 @@
+forget:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: switch
+          multiple: true
+restore_now:
