@@ -43,7 +43,7 @@ sensor on this HA instance (see `../electricity.md`).
     dyads, dark; restored: ascending major arpeggio, bright) followed by an edge-tts voice (uk-UA Ostap / Polina,
     rate +10%): «Електрика пропала.» / «Електрика повернулась.». Chime and voice were loudness-matched by EBU R128
     LUFS, but on this small speaker Polina still sounds quieter, so the restored file is deliberately hotter
-    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. volume 50 % (confirmed
+    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. Volume 50 % (confirmed
     audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
     `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
     calls `volume_set` before each `play_media`. Both test sounds confirmed audible. The speaker is powered from
