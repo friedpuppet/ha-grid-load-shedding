@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.3.0** (GitHub release + tag; v0.1.0 had no schedule windows). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.4.0** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -36,6 +36,13 @@ sensor on this HA instance (see `../electricity.md`).
     `_run_on_schedule`: HA 2026.9 builds entity_ids from the *English* name plus the area.
   - **Updating**: release a new version (bump `manifest.json`), then HACS → update → restart Core.
     Via WS: `hacs/repository/download` with `repository: "1408580017"` and `version: "vX.Y.Z"`.
+  - **Sound notifications (v0.4.0, 2026-10-07)**: subentry «VLC-TELNET» on `media_player.vlc_telnet` (VLC add-on
+    `core_vlc`, output = analog jack `rk3528-acodec`, a small speaker is plugged in). Sounds
+    `media-source://media_source/local/grid_lost.wav` / `grid_restored.wav` (generated chimes in
+    `/var/lib/homeassistant/media/`; the user may replace them via Media → Local media), volume 50 % (confirmed
+    audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
+    `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
+    calls `volume_set` before each `play_media`. Not yet heard on a real outage.
   - Not yet seen a real outage with the integration (the old automation handled 2026-10-07 09:01–12:05 Kyiv).
 
 ## Layout
