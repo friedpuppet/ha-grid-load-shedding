@@ -1,5 +1,8 @@
 # Grid Load Shedding
 
+> Personal project, published only so it can be installed through HACS as a custom repository.
+> Use it if it's useful to you, but there's no support and no promise of stability.
+
 A Home Assistant integration for homes with a hybrid inverter or UPS. It detects when utility-grid
 power is lost, turns off selected heavy loads (kettle, washing machine, air conditioners…) so they
 don't drain the battery, and turns the same ones back on once the grid has been back for a while.

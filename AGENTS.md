@@ -18,9 +18,14 @@ sensor on this HA instance (see `../electricity.md`).
   fine-grained PAT has a single resource owner.
 - Push without storing the token:
   `git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$(cat ~/.config/github/token-grid-load-shedding)" | base64 -w0)" push`
-- CI (`.github/workflows/validate.yml`): hassfest, HACS validation, pytest. HACS needs the repo to have
-  topics, and needs brand assets. Those live in `custom_components/grid_load_shedding/brand/`
-  (`icon.png` 256², `icon@2x.png` 512²), since the domain isn't in home-assistant/brands.
+- **Personal project, not for the public**: installed only as a HACS *custom repository*. It is
+  deliberately **not** submitted to the HACS default store or to home-assistant/brands. The repo is
+  public only so HACS can fetch it without auth. Don't add publishing chores (HACS-store
+  requirements, brands PRs, support docs).
+- CI (`.github/workflows/validate.yml`): hassfest + pytest. The `hacs/action` job was removed because
+  it only matters for the HACS default store. The brand icon in
+  `custom_components/grid_load_shedding/brand/` (`icon.png` 256², `icon@2x.png` 512²) stays, since HA
+  shows it in the UI.
 - **Not installed on the live HA yet.** The cutover plan is in `PLAN.md` ("Перехід на живому HA").
   Do it only on the user's go-ahead.
 
