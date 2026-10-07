@@ -86,7 +86,7 @@ device_class voltage); поріг V (170); утримання при недос�
 
 GitHub Actions: `hassfest` + HACS validation + pytest.
 
-## Перехід на живому HA (окремим кроком, після погодження коду)
+## Перехід на живому HA — ✅ виконано 2026-10-07 (HA 2026.9.4)
 1. Бекап `automations.yaml`, `configuration.yaml`, `.storage/core.config_entries`.
 2. Встановити через HACS (custom repo), створити entry: напруга
    `sensor.inverter_grid_voltage`, поріг 170, hold 30, запасний

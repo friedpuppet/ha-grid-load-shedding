@@ -26,8 +26,17 @@ sensor on this HA instance (see `../electricity.md`).
   it only matters for the HACS default store. The brand icon in
   `custom_components/grid_load_shedding/brand/` (`icon.png` 256², `icon@2x.png` 512²) stays, since HA
   shows it in the UI.
-- **Not installed on the live HA yet.** The cutover plan is in `PLAN.md` ("Перехід на живому HA").
-  Do it only on the user's go-ahead.
+- **Installed on the live HA (2026-10-07, HA 2026.9.4)** via HACS (custom repository, HACS repo id
+  `1408580017`), entry «Мережа» `01M4AZ6M70PVSKY7XEM7G7YMC9`, 18 load subentries. The boiler has a
+  01:00–07:00 window. The cutover from the old template/automation setup is done (see `PLAN.md` and
+  `../electricity.md`).
+  - Live entity_ids: Grid is renamed to `binary_sensor.e_elektrika`; Shed loads to
+    `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
+    `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
+    `_run_on_schedule`: HA 2026.9 builds entity_ids from the *English* name plus the area.
+  - **Updating**: release a new version (bump `manifest.json`), then HACS → update → restart Core.
+    Via WS: `hacs/repository/download` with `repository: "1408580017"` and `version: "vX.Y.Z"`.
+  - Not yet seen a real outage with the integration (the old automation handled 2026-10-07 09:01–12:05 Kyiv).
 
 ## Layout
 
