@@ -37,9 +37,13 @@ sensor on this HA instance (see `../electricity.md`).
   - **Updating**: release a new version (bump `manifest.json`), then HACS → update → restart Core.
     Via WS: `hacs/repository/download` with `repository: "1408580017"` and `version: "vX.Y.Z"`.
   - **Sound notifications (v0.4.0, 2026-10-07)**: subentry «VLC-TELNET» on `media_player.vlc_telnet` (VLC add-on
-    `core_vlc`, output = analog jack `rk3528-acodec`, a small speaker is plugged in). Sounds
-    `media-source://media_source/local/grid_lost.wav` / `grid_restored.wav` (generated chimes in
-    `/var/lib/homeassistant/media/`; the user may replace them via Media → Local media), volume 50 % (confirmed
+    `core_vlc`, output = analog jack `rk3528-acodec`, a small speaker is plugged in). Sounds (since 2026-10-07)
+    `media-source://media_source/local/grid_lost_ostap_6.mp3` / `grid_restored_polina_8.mp3`, the only files in
+    `/var/lib/homeassistant/media/`. Each one is a synthesized three-strike bell chime (lost: descending tritone
+    dyads, dark; restored: ascending major arpeggio, bright) followed by an edge-tts voice (uk-UA Ostap / Polina,
+    rate +10%): «Електрика пропала.» / «Електрика повернулась.». Chime and voice were loudness-matched by EBU R128
+    LUFS, but on this small speaker Polina still sounds quieter, so the restored file is deliberately hotter
+    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. volume 50 % (confirmed
     audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
     `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
     calls `volume_set` before each `play_media`. Both test sounds confirmed audible. The speaker is powered from
