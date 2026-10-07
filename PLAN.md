@@ -69,7 +69,7 @@ device_class voltage); поріг V (170); утримання при недос�
   (Telegram тощо) могли реагувати.
 
 **Файли** (`custom_components/grid_load_shedding/`): `manifest.json` (`iot_class: calculated`,
-`config_flow: true`, `integration_type: helper`), `const.py`, `__init__.py`, `config_flow.py`
+`config_flow: true`, `integration_type: service` — спершу був `helper`, але тоді інтеграція видна лише в «Помічниках»; змінено у v0.2.1), `const.py`, `__init__.py`, `config_flow.py`
 (entry + options + subentry flows), `grid.py` (логіка детекції, чиста й тестовна), `shedder.py`
 (логіка вимкнення/відновлення + Store), `binary_sensor.py`, `sensor.py`, `switch.py`,
 `number.py`, `button.py`, `services.yaml`, `strings.json`, `translations/{en,uk}.json`.
