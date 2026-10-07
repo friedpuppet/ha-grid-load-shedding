@@ -10,10 +10,17 @@ sensor on this HA instance (see `../electricity.md`).
 ## Status
 
 - Code and tests are done (`uv run pytest`: all green against HA 2026.8.3).
-- Local git only. The **GitHub repo doesn't exist yet**: the user creates it (the PAT in
-  `~/.config/github/token` is scoped to the two ha-server-monitor repos only). `manifest.json`,
-  `README` and `LICENSE` assume `github.com/friedpuppet/ha-grid-load-shedding`; change them if it lands
-  elsewhere (e.g. the `ha-linux-monitoring` org).
+- Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
+  (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
+  at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
+  Administration**, so repo settings like topics are done by the user in the UI). The old
+  `~/.config/github/token` belongs to the `ha-linux-monitoring` org and can't be reused here: a
+  fine-grained PAT has a single resource owner.
+- Push without storing the token:
+  `git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$(cat ~/.config/github/token-grid-load-shedding)" | base64 -w0)" push`
+- CI (`.github/workflows/validate.yml`): hassfest, HACS validation, pytest. HACS needs the repo to have
+  topics, and needs brand assets. Those live in `custom_components/grid_load_shedding/brand/`
+  (`icon.png` 256², `icon@2x.png` 512²), since the domain isn't in home-assistant/brands.
 - **Not installed on the live HA yet.** The cutover plan is in `PLAN.md` ("Перехід на живому HA").
   Do it only on the user's go-ahead.
 
