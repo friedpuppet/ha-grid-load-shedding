@@ -11,6 +11,7 @@ from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_FALLBACK_ENTITY,
@@ -18,6 +19,8 @@ from .const import (
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
+    CONF_WINDOW_END,
+    CONF_WINDOW_START,
     DEFAULT_HOLD_SECONDS,
     DEFAULT_THRESHOLD,
     DOMAIN,
@@ -26,7 +29,7 @@ from .const import (
     SUBENTRY_LOAD,
 )
 from .grid import GridMonitor
-from .shedder import Shedder
+from .shedder import Load, Shedder
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
 
@@ -86,7 +89,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
         entity_id = er.async_resolve_entity_id(ent_reg, subentry.data[CONF_SWITCH_ENTITY])
         if entity_id is None:
             continue  # the switch was deleted; its subentry stays until the user removes it
-        shedder.loads[subentry_id] = entity_id
+        start, end = subentry.data.get(CONF_WINDOW_START), subentry.data.get(CONF_WINDOW_END)
+        window = (dt_util.parse_time(start), dt_util.parse_time(end)) if start and end else None
+        shedder.loads[subentry_id] = Load(subentry_id, entity_id, window)
 
     entry.runtime_data = RuntimeData(monitor, shedder)
 

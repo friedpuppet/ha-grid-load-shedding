@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Released **v0.1.0** (GitHub release + tag). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.2.0** (GitHub release + tag; v0.1.0 had no schedule windows). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -34,11 +34,11 @@ sensor on this HA instance (see `../electricity.md`).
 | Path | What |
 |---|---|
 | `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage → hold timer → fallback). No entities, unit-testable. |
-| `.../shedder.py` | `Shedder`: shed on `on → off`, restore after the delay, persisted list (`Store`, key `grid_load_shedding.<entry_id>`). |
+| `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
 | `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change. |
 | `.../config_flow.py` | Entry flow (voltage/threshold/hold/fallback), options flow, `load` subentry flow. |
 | `.../binary_sensor.py` `sensor.py` `number.py` `button.py` | Entities on the entry's own "Grid" service device. |
-| `.../switch.py` | Per-load "Shed on grid loss" flag, attached to the *load's* device via `entity.device_entry = async_entity_id_to_device(...)`. |
+| `.../switch.py` | Per-load switches on the *load's* device (`entity.device_entry = async_entity_id_to_device(...)`): "Shed on grid loss" for every load, "Run on schedule" for loads with a window. Unique ids `<subentry_id>_shed_on_grid_loss` / `_run_on_schedule`. |
 | `tests/` | pytest-homeassistant-custom-component. The loads are optimistic template switches. |
 
 ## Design notes
@@ -52,6 +52,19 @@ sensor on this HA instance (see `../electricity.md`).
   `OptionsFlowWithReload`: HA raises if it's combined with update listeners.
 - The shed list is flushed synchronously in `async_unload_entry`. A delayed `Store` save alone lost
   the list across a reload (caught by `test_shed_list_survives_reload`).
+- **Schedule windows** (subentry data `window_start`/`window_end`, `HH:MM:SS` local, may cross
+  midnight; set on add or via the subentry *reconfigure* step). They act only while "Run on schedule"
+  is on:
+  - start: turn on if grid, else add to `missed`;
+  - end: turn off, drop from `shed`/`missed`;
+  - restore: shed windowed loads only inside the window, plus `missed` ones inside the window.
+
+  Manual off inside the window is respected: there is no "enforce state" loop. The user chose this over a
+  separate schedule automation to avoid the two fighting. It replaces the old `boiler_schedule`
+  automation and `input_boolean.boiler_vikoristovuietsia` (→ "Run on schedule").
+- Time-jump gotcha in tests: `async_fire_time_changed` after a big jump fires stale
+  `async_track_time_change` triggers late (see `test_window_crossing_midnight`). Real time doesn't jump,
+  so don't "fix" it in the code.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 

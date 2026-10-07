@@ -25,6 +25,8 @@ from .const import (
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
+    CONF_WINDOW_END,
+    CONF_WINDOW_START,
     DEFAULT_HOLD_SECONDS,
     DEFAULT_THRESHOLD,
     DOMAIN,
@@ -89,8 +91,28 @@ class GridLoadSheddingOptionsFlow(OptionsFlow):
         return self.async_show_form(step_id="init", data_schema=_options_schema(dict(self.config_entry.options)))
 
 
+def _window_schema(defaults: dict[str, Any]) -> dict:
+    """Optional schedule window; leave both empty for "always (while there is grid)"."""
+    return {
+        vol.Optional(CONF_WINDOW_START, description={"suggested_value": defaults.get(CONF_WINDOW_START)}): selector.TimeSelector(),
+        vol.Optional(CONF_WINDOW_END, description={"suggested_value": defaults.get(CONF_WINDOW_END)}): selector.TimeSelector(),
+    }
+
+
+def _window_data(user_input: dict[str, Any], errors: dict[str, str]) -> dict[str, str]:
+    """Validate the window fields; return the data to store (empty = no window)."""
+    start, end = user_input.get(CONF_WINDOW_START), user_input.get(CONF_WINDOW_END)
+    if not start and not end:
+        return {}
+    if not start or not end:
+        errors["base"] = "window_incomplete"
+    elif start == end:
+        errors["base"] = "window_empty"
+    return {CONF_WINDOW_START: start, CONF_WINDOW_END: end}
+
+
 class LoadSubentryFlow(ConfigSubentryFlow):
-    """Add a switch to shed when the grid is lost."""
+    """Add a switch to shed when the grid is lost, optionally with a schedule window."""
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         entry = self._get_entry()
@@ -102,12 +124,15 @@ class LoadSubentryFlow(ConfigSubentryFlow):
             reg_entry = ent_reg.async_get(entity_id)
             # Store the registry id (survives entity_id renames) when there is one.
             ref = reg_entry.id if reg_entry else entity_id
+            window = _window_data(user_input, errors)
             if any(s.unique_id == ref for s in entry.subentries.values()):
                 errors[CONF_SWITCH_ENTITY] = "already_configured"
-            else:
+            if not errors:
                 state = self.hass.states.get(entity_id)
                 title = (state.name if state else None) or entity_id
-                return self.async_create_entry(title=title, data={CONF_SWITCH_ENTITY: ref}, unique_id=ref)
+                return self.async_create_entry(
+                    title=title, data={CONF_SWITCH_ENTITY: ref, **window}, unique_id=ref
+                )
 
         existing = [
             entity_id
@@ -119,7 +144,24 @@ class LoadSubentryFlow(ConfigSubentryFlow):
             {
                 vol.Required(CONF_SWITCH_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="switch", exclude_entities=existing)
-                )
+                ),
+                **_window_schema(user_input or {}),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Change (or clear) the schedule window."""
+        subentry = self._get_reconfigure_subentry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            window = _window_data(user_input, errors)
+            if not errors:
+                data = {CONF_SWITCH_ENTITY: subentry.data[CONF_SWITCH_ENTITY], **window}
+                return self.async_update_and_abort(self._get_entry(), subentry, data=data)
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(_window_schema(user_input or dict(subentry.data))),
+            errors=errors,
+            description_placeholders={"load": subentry.title},
+        )

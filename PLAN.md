@@ -97,8 +97,12 @@ GitHub Actions: `hassfest` + HACS validation + pytest.
 5. Видалити UI-хелпер «Є електрика», перейменувати нову сутність Grid на
    `binary_sensor.e_elektrika` (WS `config/entity_registry/update`), щоб Power Watchdog, бойлер і
    дашборд не змінювались.
-6. `boiler_schedule`: подію `power_shed_forget` замінити на сервіс `grid_load_shedding.forget`.
-7. Прибрати старе: 18 template-перемикачів, trigger-template сенсор, `input_number`, автоматизацію.
+6. Бойлер (`switch.rozetka_boiler`): у його навантаження задати вікно 01:00–07:00, а стан «Працювати
+   за розкладом» узяти з `input_boolean.boiler_vikoristovuietsia`. Автоматизацію `boiler_schedule`
+   видалити (вікна в інтеграції замінили її, v0.2.0). Перевірити дашборди на посилання на
+   `input_boolean.boiler_vikoristovuietsia` і замінити їх новим перемикачем.
+7. Прибрати старе: 18 template-перемикачів, trigger-template сенсор, `input_number`,
+   `input_boolean.boiler_vikoristovuietsia`, автоматизації `power_shed_heavy_loads` і `boiler_schedule`.
 8. Оновити `electricity.md` і корінь `AGENTS.md`.
 
 ## Verification

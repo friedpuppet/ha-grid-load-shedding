@@ -29,6 +29,25 @@ Add loads under the integration's entry with **Add load**: pick any `switch`. Ea
   If the grid drops again during the delay, the restore is cancelled.
 - **Restarts**: the remembered list survives Home Assistant restarts and entry reloads.
 
+### Schedule window (optional, per load)
+
+A load can also get a schedule window, e.g. a boiler that heats 01:00–07:00. Set it when adding the
+load or later with **Reconfigure**; clear both fields to remove it. A load with a window gets a
+**Run on schedule** switch, on by default. While that switch is on:
+
+| Event | Action |
+|---|---|
+| Window start, grid present | turn on |
+| Window start, no grid | remember the missed start |
+| Grid back (after *Restore delay*), inside the window | turn on, if it was shed or its start was missed |
+| Grid back, window already over | leave off, drop from the list |
+| Window end | turn off, even without grid; drop from the list and clear any missed start |
+
+- Turning **Run on schedule** on inside the window (with grid) starts the load right away.
+- Manually switching the load off inside the window is respected.
+- With **Run on schedule** off, the load behaves like one without a window.
+- Windows may cross midnight (e.g. 23:00–02:00). Times are Home Assistant's local time.
+
 ## Entities
 
 | Entity | Purpose |
@@ -38,12 +57,13 @@ Add loads under the integration's entry with **Add load**: pick any `switch`. Ea
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |
 | `button.<name>_restore_now` | Restore immediately. |
 | `switch.<load>_shed_on_grid_loss` | Per-load flag. |
+| `switch.<load>_run_on_schedule` | Only for loads with a window. The window is in the `window_start`/`window_end` attributes. |
 
 ## Services and events
 
 - `grid_load_shedding.forget` (`entity_id`): drop switches from the remembered list so they aren't
-  turned back on. Use it when something else legitimately switches a load off during an outage, e.g. a
-  boiler schedule that ends.
+  turned back on. Use it when something outside the integration legitimately switches a load off during an
+  outage. Schedule windows already do this themselves.
 - `grid_load_shedding.restore_now`: same as the button.
 - Events `grid_load_shedding_shed` and `grid_load_shedding_restored` (`entity_id`: list), for
   notifications.

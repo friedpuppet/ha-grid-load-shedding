@@ -82,7 +82,8 @@ async def test_add_load_subentry(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert len(entry.subentries) == 1
-    assert entry.runtime_data.shedder.loads == {next(iter(entry.subentries)): "switch.kettle"}
+    load = next(iter(entry.runtime_data.shedder.loads.values()))
+    assert (load.entity_id, load.window) == ("switch.kettle", None)
 
     # The same switch can't be added twice: the selector already excludes it.
     result = await hass.config_entries.subentries.async_init(

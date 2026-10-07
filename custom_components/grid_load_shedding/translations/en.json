@@ -39,38 +39,80 @@
     "load": {
       "entry_type": "Load",
       "initiate_flow": {
-        "user": "Add load"
+        "user": "Add load",
+        "reconfigure": "Reconfigure"
       },
       "step": {
         "user": {
           "title": "Add load",
           "description": "This switch is turned off when the grid is lost (if it was on) and turned back on once the grid has been back for the restore delay.",
           "data": {
-            "switch_entity": "Switch"
+            "switch_entity": "Switch",
+            "window_start": "Window start",
+            "window_end": "Window end"
+          },
+          "data_description": {
+            "window_start": "Optional. If set (with the end), the load runs only in this window: turned on at the start, off at the end, never restored outside it. Leave both empty to keep it on whenever there is grid.",
+            "window_end": "May be earlier than the start (window crosses midnight)."
+          }
+        },
+        "reconfigure": {
+          "title": "Schedule window",
+          "description": "Schedule window for {load}. Clear both fields to remove the window.",
+          "data": {
+            "window_start": "Window start",
+            "window_end": "Window end"
+          },
+          "data_description": {
+            "window_start": "Optional. If set (with the end), the load runs only in this window: turned on at the start, off at the end, never restored outside it. Leave both empty to keep it on whenever there is grid.",
+            "window_end": "May be earlier than the start (window crosses midnight)."
           }
         }
       },
       "error": {
-        "already_configured": "This switch is already a load."
+        "already_configured": "This switch is already a load.",
+        "window_incomplete": "Set both the start and the end of the window, or neither.",
+        "window_empty": "The window start and end must differ."
+      },
+      "abort": {
+        "reconfigure_successful": "The load was updated."
       }
     }
   },
   "entity": {
     "binary_sensor": {
-      "grid": { "name": "Grid" }
+      "grid": {
+        "name": "Grid"
+      }
     },
     "sensor": {
-      "shed_loads": { "name": "Shed loads" }
+      "shed_loads": {
+        "name": "Shed loads"
+      }
     },
     "number": {
-      "restore_delay": { "name": "Restore delay" }
+      "restore_delay": {
+        "name": "Restore delay"
+      }
     },
     "button": {
-      "restore_now": { "name": "Restore now" }
+      "restore_now": {
+        "name": "Restore now"
+      }
     },
     "switch": {
-      "shed_on_grid_loss": { "name": "Shed on grid loss" },
-      "shed_on_grid_loss_named": { "name": "Shed {load} on grid loss" }
+      "shed_on_grid_loss": {
+        "name": "Shed on grid loss"
+      },
+      "shed_on_grid_loss_named": {
+        "name": "Shed {load} on grid loss"
+      },
+      "run_on_schedule": {
+        "name": "Run on schedule"
+      },
+      "run_on_schedule_named": {
+        "name": "Run {load} on schedule"
+      }
     }
   },
   "services": {
@@ -78,7 +120,10 @@
       "name": "Forget shed load",
       "description": "Remove switches from the shed list so they are not turned back on when the grid returns.",
       "fields": {
-        "entity_id": { "name": "Switches", "description": "Switches to forget." }
+        "entity_id": {
+          "name": "Switches",
+          "description": "Switches to forget."
+        }
       }
     },
     "restore_now": {

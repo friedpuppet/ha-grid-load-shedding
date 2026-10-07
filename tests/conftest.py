@@ -18,6 +18,8 @@ from custom_components.grid_load_shedding.const import (
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
+    CONF_WINDOW_END,
+    CONF_WINDOW_START,
     DOMAIN,
     SUBENTRY_LOAD,
 )
@@ -55,7 +57,13 @@ async def setup_loads(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
 
-def make_entry(options: dict[str, Any] | None = None, loads: tuple[str, ...] = LOADS) -> MockConfigEntry:
+def make_entry(
+    options: dict[str, Any] | None = None,
+    loads: tuple[str, ...] = LOADS,
+    windows: dict[str, tuple[str, str]] | None = None,
+) -> MockConfigEntry:
+    """Entry with the given loads; ``windows`` maps a load to (start, end)."""
+    windows = windows or {}
     return MockConfigEntry(
         domain=DOMAIN,
         title="Grid",
@@ -69,7 +77,14 @@ def make_entry(options: dict[str, Any] | None = None, loads: tuple[str, ...] = L
         },
         subentries_data=[
             ConfigSubentryData(
-                data={CONF_SWITCH_ENTITY: load},
+                data={
+                    CONF_SWITCH_ENTITY: load,
+                    **(
+                        {CONF_WINDOW_START: windows[load][0], CONF_WINDOW_END: windows[load][1]}
+                        if load in windows
+                        else {}
+                    ),
+                },
                 subentry_type=SUBENTRY_LOAD,
                 title=load,
                 unique_id=load,
@@ -85,9 +100,9 @@ async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     await hass.async_block_till_done()
 
 
-def flag_entity(hass: HomeAssistant, entry: MockConfigEntry, load: str) -> str:
-    """entity_id of the "shed on grid loss" switch for a load."""
+def flag_entity(hass: HomeAssistant, entry: MockConfigEntry, load: str, key: str = "shed_on_grid_loss") -> str:
+    """entity_id of a per-load switch ("shed_on_grid_loss" or "run_on_schedule")."""
     subentry_id = next(s.subentry_id for s in entry.subentries.values() if s.data[CONF_SWITCH_ENTITY] == load)
-    entity_id = er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{subentry_id}_shed")
+    entity_id = er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{subentry_id}_{key}")
     assert entity_id
     return entity_id
