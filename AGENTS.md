@@ -42,7 +42,9 @@ sensor on this HA instance (see `../electricity.md`).
     `/var/lib/homeassistant/media/`; the user may replace them via Media → Local media), volume 50 % (confirmed
     audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
     `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
-    calls `volume_set` before each `play_media`. Not yet heard on a real outage.
+    calls `volume_set` before each `play_media`. Both test sounds confirmed audible. The speaker is powered from
+    an inverter-backed outlet, so it keeps working through an outage (except after the battery is empty and the
+    inverter has shut down). Not yet heard on a real outage.
   - Not yet seen a real outage with the integration (the old automation handled 2026-10-07 09:01–12:05 Kyiv).
 
 ## Layout
