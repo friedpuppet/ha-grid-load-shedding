@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.4.0** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.4.1** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -46,7 +46,8 @@ sensor on this HA instance (see `../electricity.md`).
     (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. Volume 50 % (confirmed
     audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
     `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
-    calls `volume_set` before each `play_media`. Both test sounds confirmed audible. The speaker is powered from
+    calls `volume_set` before each `play_media`. `vlc_telnet` sends `volume_level * 500` but aiovlc accepts only 0..499, so 1.0 fails: the announcer caps it at 0.99, and
+    a failed `volume_set` no longer stops the sound. Both test sounds confirmed audible. The speaker is powered from
     an inverter-backed outlet, so it keeps working through an outage (except after the battery is empty and the
     inverter has shut down). Not yet heard on a real outage.
   - Not yet seen a real outage with the integration (the old automation handled 2026-10-07 09:01–12:05 Kyiv).

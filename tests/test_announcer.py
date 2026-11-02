@@ -10,6 +10,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import ATTR_ENTITY_ID, STATE_OFF, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -99,6 +100,32 @@ async def test_lost_and_restored_in_window(hass: HomeAssistant, freezer: FrozenD
 
     await grid(hass, "230")
     assert player.played == [LOST["media_content_id"], RESTORED["media_content_id"]]
+
+
+async def test_full_volume_stays_in_vlc_range(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """vlc_telnet multiplies by 500 and aiovlc rejects 500."""
+    at(freezer, 14)
+    _, player = await setup(hass, **{CONF_VOLUME: 100})
+
+    await grid(hass, "0")
+    assert player.calls[0]["service_data"]["volume_level"] == 0.99
+    assert round(player.calls[0]["service_data"]["volume_level"] * 500) < 500
+
+
+async def test_volume_failure_still_plays(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, caplog: pytest.LogCaptureFixture
+) -> None:
+    at(freezer, 14)
+    _, player = await setup(hass)
+
+    async def fail(_call: ServiceCall) -> None:
+        raise HomeAssistantError("volume out of range")
+
+    hass.services.async_register("media_player", "volume_set", fail)
+
+    await grid(hass, "0")
+    assert player.played == [LOST["media_content_id"]]
+    assert "can't set volume" in caplog.text
 
 
 @pytest.mark.parametrize(

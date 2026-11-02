@@ -26,6 +26,9 @@ _LOGGER = logging.getLogger(__name__)
 EVENT_LOST = "lost"
 EVENT_RESTORED = "restored"
 
+# vlc_telnet sends volume_level * 500, but aiovlc only accepts 0..499, so 1.0 fails.
+MAX_VOLUME_LEVEL = 0.99
+
 
 @dataclass(frozen=True)
 class Announcement:
@@ -89,9 +92,12 @@ class Announcer:
             await self.hass.services.async_call(
                 MEDIA_PLAYER_DOMAIN,
                 SERVICE_VOLUME_SET,
-                {**target, ATTR_MEDIA_VOLUME_LEVEL: announcement.volume},
+                {**target, ATTR_MEDIA_VOLUME_LEVEL: min(announcement.volume, MAX_VOLUME_LEVEL)},
                 blocking=True,
             )
+        except HomeAssistantError as err:  # a wrong volume is better than no sound
+            _LOGGER.warning("Grid %s: can't set volume on %s: %s", event, announcement.entity_id, err)
+        try:
             await self.hass.services.async_call(
                 MEDIA_PLAYER_DOMAIN,
                 SERVICE_PLAY_MEDIA,
