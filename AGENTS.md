@@ -107,6 +107,8 @@ sensor on this HA instance (see `../electricity.md`).
   return drops pending turn-offs of shed loads. During an outage a flagged load going unavailable/unknown → on is shed
   (plugs behind the dead inverter output restore "on"); off → on by hand is left alone. Tests: `tests/test_unreliable.py`
   (patch `Shedder._call` to fail).
+  Installed 2026-11-03 16:02 Kyiv during an outage: the 8-load shed list survived the restart, the plugs came back
+  `off` within a minute. Not yet seen a real lost command or a plug restoring "on" with it.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
