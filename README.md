@@ -30,6 +30,11 @@ Dialog and switches edit the same setting, so they are always in sync.
 - **Grid has been back for *Restore delay* seconds**: the remembered loads are turned back on.
   If the grid drops again during the delay, the restore is cancelled.
 - **Restarts**: the remembered list survives Home Assistant restarts and entry reloads.
+- **Unreliable switches** (e.g. Zigbee plugs that drop a command, or lose power behind an inverter): each
+  switch gets its own command, retried after 2 s and 5 s, then every 60 s until it succeeds. A command for an
+  unavailable switch is sent as soon as it is back. A remembered load leaves the list only once it is really on
+  again. A flagged load that comes back from unavailable already on during an outage is turned off and
+  remembered too; a load you turn on by hand during the outage is left alone.
 
 ### Schedule window (optional, per load)
 

@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.5.0** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.5.1** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -99,6 +99,14 @@ sensor on this HA instance (see `../electricity.md`).
     restore timers survive a dashboard toggle. Anything else reloads.
   - The v0.2.x → v0.3.0 migration: if the key is missing from the subentry, the switch writes its restored
     entity state into it once.
+- **Unreliable loads** (v0.5.1, after the 2026-10-31…11-02 MAC_NO_ACK errors): `_switch` sends one `_command` per
+  entity (`asyncio.gather`), retried after `RETRY_DELAYS` (2 s, 5 s), then every `RECHECK_INTERVAL` (60 s) while still
+  in `_pending` (entity → service, in memory only). Unavailable → no call, `_async_load_changed` resends when it is
+  back; `unknown` still gets the call. A pending command is confirmed by the call succeeding or by the state reaching the
+  target. Restore keeps the targets in `shed` and drops each once confirmed on. Grid loss drops pending turn-ons, grid
+  return drops pending turn-offs of shed loads. During an outage a flagged load going unavailable/unknown → on is shed
+  (plugs behind the dead inverter output restore "on"); off → on by hand is left alone. Tests: `tests/test_unreliable.py`
+  (patch `Shedder._call` to fail).
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
