@@ -43,7 +43,7 @@ sensor on this HA instance (see `../electricity.md`).
     dyads, dark; restored: ascending major arpeggio, bright) followed by an edge-tts voice (uk-UA Ostap / Polina,
     rate +10%): «Електрика пропала.» / «Електрика повернулась.». Chime and voice were loudness-matched by EBU R128
     LUFS, but on this small speaker Polina still sounds quieter, so the restored file is deliberately hotter
-    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. Volume 50 % (confirmed
+    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. Volume 80 % (was 50 %, confirmed
     audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
     `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
     calls `volume_set` before each `play_media`. `vlc_telnet` sends `volume_level * 500` but aiovlc accepts only 0..499, so 1.0 fails: the announcer caps it at 0.99, and
@@ -102,8 +102,12 @@ sensor on this HA instance (see `../electricity.md`).
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
-- **Battery sounds (not released, not on the live HA yet)**: the battery is one percentage entity, an abstraction on purpose
-  (the user may pick a phone): no power, capacity or voltage. Live value will be `sensor.batareia_state_of_charge`.
+- **Battery sounds (v0.5.0, live since 2026-11-03)**: the battery is one percentage entity, an abstraction on purpose
+  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 %, the six
+  `media_source/local/battery_*_ostap.mp3` files (from `sounds/battery-alpha/`) on «VLC-TELNET», battery volume 80 %
+  (the grid sounds are also at 80 % now). Entities `sensor.merezha_battery_runtime`,
+  `button.vitalnia_vlc_telnet_test_sound_battery_*`. All six test buttons played (VLC at 0.8, no errors) during the
+  2026-11-03 outage; not yet heard from a real level crossing.
   - The rate comes from segments of a 1-point fall, not from every state: `battery_soc` updates in ticks, so single 0.1 %
     steps kept the median at 18 %/h with a real 21 %/h.
   - Replay of real history through `BatteryMonitor`, reserve 0 (the user's choice, 2026-11-03): 11-02 gave half 10:59, 2 h
