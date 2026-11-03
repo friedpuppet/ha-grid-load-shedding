@@ -1,14 +1,16 @@
-"""Sensor listing the loads currently turned off because of a grid outage."""
+"""Sensors: the loads turned off because of a grid outage, and the battery's time left."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GridLoadSheddingConfigEntry
+from .battery import BatteryMonitor
 from .entity import GridEntity
 from .shedder import Shedder
 
@@ -18,7 +20,10 @@ async def async_setup_entry(
     entry: GridLoadSheddingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    async_add_entities([ShedLoadsSensor(entry, entry.runtime_data.shedder)])
+    entities: list[SensorEntity] = [ShedLoadsSensor(entry, entry.runtime_data.shedder)]
+    if entry.runtime_data.battery:
+        entities.append(BatteryRuntimeSensor(entry, entry.runtime_data.battery))
+    async_add_entities(entities)
 
 
 class ShedLoadsSensor(GridEntity, SensorEntity):
@@ -40,6 +45,36 @@ class ShedLoadsSensor(GridEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self._shedder.async_add_listener(self._on_change))
+
+    @callback
+    def _on_change(self) -> None:
+        self.async_write_ha_state()
+
+
+class BatteryRuntimeSensor(GridEntity, SensorEntity):
+    """Time left at the median discharge rate; unknown until there is a rate."""
+
+    _attr_icon = "mdi:battery-clock-outline"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+
+    def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
+        super().__init__(entry, "battery_runtime")
+        self._battery = battery
+
+    @property
+    def native_value(self) -> int | None:
+        runtime = self._battery.runtime_minutes
+        return None if runtime is None else round(runtime)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        rate = self._battery.median_rate
+        return {"median_rate": None if rate is None else round(rate, 1), "passed": sorted(self._battery.passed)}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self._battery.async_add_listener(self._on_change))
 
     @callback
     def _on_change(self) -> None:

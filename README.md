@@ -68,18 +68,36 @@ buttons, which play right away, ignoring the window and the switch.
 
 If grid loss should be heard, the speaker and the box running Home Assistant need to be on a UPS.
 
+### Battery sounds (optional)
+
+Pick a **Battery** in the integration options: any sensor with a charge in percent. Nothing else is needed, so it
+can be an inverter battery or a phone. Each sound notification then gets six more optional sounds and its own
+**Battery sounds volume**; the window and the on/off switch are the same as for the grid sounds.
+
+- **Half / quarter charge**: below 50 % and 25 % of the reported charge.
+- **2 hours / 1 hour / 30 minutes / 10 minutes left**: charge divided by the discharge rate. The rate is the median
+  over the last 30 minutes of the segments in which the charge fell by one point, so it needs at least three of
+  them, and a battery losing less than 6 %/h gets no estimate.
+- **Battery reserve**: charge the battery can't really give. The time left counts down to this level, not to 0 %.
+
+Each level plays once per discharge, and a restart doesn't repeat it. If several are crossed together, only the most
+urgent plays. A level comes back after 5 points of real charging, so a short grid blink repeats nothing. A level
+crossed outside the window is skipped, not delayed.
+
 ## Entities
 
 | Entity | Purpose |
 |---|---|
 | `binary_sensor.<name>_grid` | Grid present (device class `power`). The `source` attribute shows what decided: `voltage`, `hold` or `fallback`. |
 | `sensor.<name>_shed_loads` | How many loads are off because of the outage. The `entities` attribute lists them. |
+| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced). |
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |
 | `button.<name>_restore_now` | Restore immediately. |
 | `switch.<load>_shed_on_grid_loss` | Per-load flag. |
 | `switch.<load>_run_on_schedule` | Only for loads with a window. The window is in the `window_start`/`window_end` attributes. |
 | `switch.<player>_sound_notifications` | Per sound notification. The window is in the attributes. |
 | `button.<player>_test_sound_grid_lost` / `_grid_restored` | Play the sound now. |
+| `button.<player>_test_sound_battery_*` | Only with a battery: the same for each battery level, at the battery volume. |
 
 ## Services and events
 

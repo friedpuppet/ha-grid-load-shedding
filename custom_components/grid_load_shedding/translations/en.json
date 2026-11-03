@@ -9,13 +9,17 @@
           "voltage_entity": "Grid voltage sensor",
           "threshold": "Grid present above",
           "hold_seconds": "Hold state while the voltage sensor is unavailable",
-          "fallback_entity": "Fallback grid sensor"
+          "fallback_entity": "Fallback grid sensor",
+          "battery_entity": "Battery",
+          "battery_reserve": "Battery reserve"
         },
         "data_description": {
           "voltage_entity": "Grid is present while this voltage is above the threshold.",
           "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. 170 V in UPS mode).",
           "hold_seconds": "Short dropouts of the voltage sensor keep the last state for this long.",
-          "fallback_entity": "Optional binary sensor that is on while the grid is present (e.g. ping of a device powered before the inverter). Used once the voltage sensor has been unavailable longer than the hold time."
+          "fallback_entity": "Optional binary sensor that is on while the grid is present (e.g. ping of a device powered before the inverter). Used once the voltage sensor has been unavailable longer than the hold time.",
+          "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
+          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
         }
       }
     },
@@ -30,7 +34,13 @@
           "voltage_entity": "Grid voltage sensor",
           "threshold": "Grid present above",
           "hold_seconds": "Hold state while the voltage sensor is unavailable",
-          "fallback_entity": "Fallback grid sensor"
+          "fallback_entity": "Fallback grid sensor",
+          "battery_entity": "Battery",
+          "battery_reserve": "Battery reserve"
+        },
+        "data_description": {
+          "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
+          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
         }
       }
     }
@@ -103,7 +113,14 @@
             "volume": "Volume",
             "window_start": "Play from",
             "window_end": "Play until",
-            "enabled": "Sound notifications"
+            "enabled": "Sound notifications",
+            "battery_volume": "Battery sounds volume",
+            "sound_soc_50": "Sound: battery half charge",
+            "sound_soc_25": "Sound: battery quarter charge",
+            "sound_runtime_120": "Sound: battery 2 hours left",
+            "sound_runtime_60": "Sound: battery 1 hour left",
+            "sound_runtime_30": "Sound: battery 30 minutes left",
+            "sound_runtime_10": "Sound: battery 10 minutes left"
           },
           "data_description": {
             "sound_lost": "Optional. Without a sound, grid loss is not announced.",
@@ -111,7 +128,14 @@
             "volume": "Set on the player right before each sound.",
             "window_start": "Sounds play only inside this window (local time); outside it they are skipped, e.g. to keep the night quiet. Leave both empty to play at any time.",
             "window_end": "May be earlier than the start (window crosses midnight).",
-            "enabled": "Also available as a switch on the player's device."
+            "enabled": "Also available as a switch on the player's device.",
+            "battery_volume": "Set on the player right before each battery sound, separately from the grid sounds.",
+            "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_60": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_10": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
           }
         },
         "reconfigure": {
@@ -123,7 +147,14 @@
             "volume": "Volume",
             "window_start": "Play from",
             "window_end": "Play until",
-            "enabled": "Sound notifications"
+            "enabled": "Sound notifications",
+            "battery_volume": "Battery sounds volume",
+            "sound_soc_50": "Sound: battery half charge",
+            "sound_soc_25": "Sound: battery quarter charge",
+            "sound_runtime_120": "Sound: battery 2 hours left",
+            "sound_runtime_60": "Sound: battery 1 hour left",
+            "sound_runtime_30": "Sound: battery 30 minutes left",
+            "sound_runtime_10": "Sound: battery 10 minutes left"
           },
           "data_description": {
             "sound_lost": "Optional. Without a sound, grid loss is not announced.",
@@ -131,7 +162,14 @@
             "volume": "Set on the player right before each sound.",
             "window_start": "Sounds play only inside this window (local time); outside it they are skipped, e.g. to keep the night quiet. Leave both empty to play at any time.",
             "window_end": "May be earlier than the start (window crosses midnight).",
-            "enabled": "Also available as a switch on the player's device."
+            "enabled": "Also available as a switch on the player's device.",
+            "battery_volume": "Set on the player right before each battery sound, separately from the grid sounds.",
+            "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_60": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
+            "sound_runtime_10": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
           }
         }
       },
@@ -154,6 +192,9 @@
     "sensor": {
       "shed_loads": {
         "name": "Shed loads"
+      },
+      "battery_runtime": {
+        "name": "Battery runtime"
       }
     },
     "number": {
@@ -176,6 +217,42 @@
       },
       "test_sound_restored_named": {
         "name": "Test sound on {player}: grid restored"
+      },
+      "test_sound_soc_50": {
+        "name": "Test sound: battery half charge"
+      },
+      "test_sound_soc_50_named": {
+        "name": "Test sound on {player}: battery half charge"
+      },
+      "test_sound_soc_25": {
+        "name": "Test sound: battery quarter charge"
+      },
+      "test_sound_soc_25_named": {
+        "name": "Test sound on {player}: battery quarter charge"
+      },
+      "test_sound_runtime_120": {
+        "name": "Test sound: battery 2 hours left"
+      },
+      "test_sound_runtime_120_named": {
+        "name": "Test sound on {player}: battery 2 hours left"
+      },
+      "test_sound_runtime_60": {
+        "name": "Test sound: battery 1 hour left"
+      },
+      "test_sound_runtime_60_named": {
+        "name": "Test sound on {player}: battery 1 hour left"
+      },
+      "test_sound_runtime_30": {
+        "name": "Test sound: battery 30 minutes left"
+      },
+      "test_sound_runtime_30_named": {
+        "name": "Test sound on {player}: battery 30 minutes left"
+      },
+      "test_sound_runtime_10": {
+        "name": "Test sound: battery 10 minutes left"
+      },
+      "test_sound_runtime_10_named": {
+        "name": "Test sound on {player}: battery 10 minutes left"
       }
     },
     "switch": {

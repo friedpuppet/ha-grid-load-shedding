@@ -9,6 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GridLoadSheddingConfigEntry
 from .announcer import EVENT_LOST, EVENT_RESTORED, Announcement, Announcer
+from .const import BATTERY_LEVELS
 from .entity import GridEntity
 from .shedder import Shedder
 
@@ -20,11 +21,14 @@ async def async_setup_entry(
 ) -> None:
     async_add_entities([RestoreNowButton(entry, entry.runtime_data.shedder)])
     announcer = entry.runtime_data.announcer
+    events = (EVENT_LOST, EVENT_RESTORED)
+    if entry.runtime_data.battery:
+        events += BATTERY_LEVELS
     for announcement in announcer.announcements.values():
         async_add_entities(
             [
                 TestSoundButton(hass, entry, announcer, announcement, event)
-                for event in (EVENT_LOST, EVENT_RESTORED)
+                for event in events
             ],
             config_subentry_id=announcement.id,
         )

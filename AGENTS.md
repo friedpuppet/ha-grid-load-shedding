@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.4.1** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.5.0** (GitHub release + tag; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -58,10 +58,12 @@ sensor on this HA instance (see `../electricity.md`).
 |---|---|
 | `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage → hold timer → fallback). No entities, unit-testable. |
 | `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
+| `.../battery.py` | `BatteryMonitor`: time left and level crossings from one percentage sensor, persisted `passed` (`Store`, key `grid_load_shedding.<entry_id>.battery`). |
 | `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change. |
 | `.../config_flow.py` | Entry flow (voltage/threshold/hold/fallback), options flow, `load` subentry flow. |
 | `.../binary_sensor.py` `sensor.py` `number.py` `button.py` | Entities on the entry's own "Grid" service device. |
 | `.../switch.py` | Per-load switches on the *load's* device (`entity.device_entry = async_entity_id_to_device(...)`): "Shed on grid loss" for every load, "Run on schedule" for loads with a window. Unique ids `<subentry_id>_shed_on_grid_loss` / `_run_on_schedule`. |
+| `scripts/make_battery_sounds.sh`, `sounds/battery-alpha/` | Generates the battery sounds (edge-tts Ostap +10 %, ffmpeg chime, −19.6 LUFS). |
 | `tests/` | pytest-homeassistant-custom-component. The loads are optimistic template switches. |
 
 ## Design notes
@@ -99,6 +101,15 @@ sensor on this HA instance (see `../electricity.md`).
     entity state into it once.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
+
+- **Battery sounds (not released, not on the live HA yet)**: the battery is one percentage entity, an abstraction on purpose
+  (the user may pick a phone): no power, capacity or voltage. Live value will be `sensor.batareia_state_of_charge`.
+  - The rate comes from segments of a 1-point fall, not from every state: `battery_soc` updates in ticks, so single 0.1 %
+    steps kept the median at 18 %/h with a real 21 %/h.
+  - Replay of real history through `BatteryMonitor`, reserve 0 (the user's choice, 2026-11-03): 11-02 gave half 10:59, 2 h
+    11:45, quarter 12:18, 1 h 13:08, 10 min 13:20; 10-30 gave half 20:33, 2 h 20:53, quarter 21:48, 10 min 22:01. So 30 min
+    (and on 10-30 also 1 h) never played. The battery died with 12–22 % shown, `battery_soc` then jumped to 0, and that jump
+    plays only "10 min". The inverter switched off about 10 min after it (13:31, 22:11). Reserve 15 % plays all levels on both days.
 
 ## Dev
 

@@ -14,13 +14,19 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .announcer import EVENT_LOST, EVENT_RESTORED, Announcement, Announcer
+from .battery import BatteryMonitor
 from .const import (
+    BATTERY_LEVELS,
+    CONF_BATTERY_ENTITY,
+    CONF_BATTERY_RESERVE,
+    CONF_BATTERY_VOLUME,
     CONF_ENABLED,
     CONF_FALLBACK_ENTITY,
     CONF_MEDIA_PLAYER,
     CONF_SOUND_LOST,
     CONF_SOUND_RESTORED,
     CONF_VOLUME,
+    DEFAULT_BATTERY_RESERVE,
     DEFAULT_VOLUME,
     SUBENTRY_ANNOUNCEMENT,
     CONF_HOLD_SECONDS,
@@ -51,6 +57,7 @@ class RuntimeData:
     monitor: GridMonitor
     shedder: Shedder
     announcer: Announcer
+    battery: BatteryMonitor | None
     signature: tuple  # config that needs a reload when it changes; see _signature()
 
 
@@ -95,6 +102,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
 
     announcer = Announcer(hass, monitor)
 
+    battery: BatteryMonitor | None = None
+    if battery_entity := opts.get(CONF_BATTERY_ENTITY):
+        battery = BatteryMonitor(
+            hass,
+            entry.entry_id,
+            entity_id=battery_entity,
+            reserve=opts.get(CONF_BATTERY_RESERVE, DEFAULT_BATTERY_RESERVE),
+            on_level=announcer.async_battery_level,
+        )
+        await battery.async_load()
+
     # Loads and players are stored by entity registry id so they survive entity_id renames.
     ent_reg = er.async_get(hass)
     for subentry_id, subentry in entry.subentries.items():
@@ -112,19 +130,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
                 for event, key in ((EVENT_LOST, CONF_SOUND_LOST), (EVENT_RESTORED, CONF_SOUND_RESTORED))
                 if subentry.data.get(key)
             }
-            volume = subentry.data.get(CONF_VOLUME, DEFAULT_VOLUME) / 100
+            sounds |= {level: sound for level in BATTERY_LEVELS if (sound := subentry.data.get(f"sound_{level}"))}
             announcer.announcements[subentry_id] = Announcement(
-                subentry_id, entity_id, sounds, volume, _window(subentry.data)
+                subentry_id,
+                entity_id,
+                sounds,
+                subentry.data.get(CONF_VOLUME, DEFAULT_VOLUME) / 100,
+                _window(subentry.data),
+                subentry.data.get(CONF_BATTERY_VOLUME, DEFAULT_VOLUME) / 100,
             )
     _apply_flags(entry, shedder, announcer, startup=True)
 
-    entry.runtime_data = RuntimeData(monitor, shedder, announcer, _signature(entry))
+    entry.runtime_data = RuntimeData(monitor, shedder, announcer, battery, _signature(entry))
 
     # Entities restore their state (grid, flags, delay) before the logic starts acting.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     monitor.async_start()
     shedder.async_start()
     announcer.async_start()
+    if battery:
+        battery.async_start()
+        entry.async_on_unload(battery.async_stop)
     entry.async_on_unload(monitor.async_stop)
     entry.async_on_unload(shedder.async_stop)
     entry.async_on_unload(announcer.async_stop)
@@ -134,6 +160,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
 
 async def async_unload_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEntry) -> bool:
     await entry.runtime_data.shedder.async_flush()
+    if entry.runtime_data.battery:
+        await entry.runtime_data.battery.async_flush()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

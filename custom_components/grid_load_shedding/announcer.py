@@ -1,4 +1,4 @@
-"""Play a sound on a media player when the grid is lost or comes back."""
+"""Play a sound on a media player when the grid is lost or comes back, and on battery levels."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 
+from .const import BATTERY_LEVELS
 from .grid import GridMonitor
 from .shedder import in_window
 
@@ -36,9 +37,10 @@ class Announcement:
 
     id: str
     entity_id: str
-    sounds: dict[str, dict[str, str]]  # EVENT_LOST/EVENT_RESTORED -> media content id/type
+    sounds: dict[str, dict[str, str]]  # event (grid or battery level) -> media content id/type
     volume: float  # 0..1
     window: tuple[time, time] | None = None  # local start, end; may cross midnight
+    battery_volume: float = 0.5  # 0..1, for the battery levels
 
 
 class Announcer:
@@ -69,12 +71,21 @@ class Announcer:
             event = EVENT_RESTORED
         else:
             return  # startup, an unknown state or only the deciding source changed
+        self._announce(event)
+
+    @callback
+    def async_battery_level(self, level: str) -> None:
+        """A battery level was crossed; same switch and window as the grid sounds."""
+        self._announce(level)
+
+    @callback
+    def _announce(self, event: str) -> None:
         now = dt_util.now().time()
         for announcement in self.announcements.values():
             if not self.enabled.get(announcement.id, True):
                 continue
             if announcement.window is not None and not in_window(now, announcement.window):
-                _LOGGER.debug("Grid %s: %s is outside its window", event, announcement.entity_id)
+                _LOGGER.debug("%s: %s is outside its window", event, announcement.entity_id)
                 continue
             self.hass.async_create_task(self._async_play(announcement, event))
 
@@ -86,17 +97,18 @@ class Announcer:
         sound = announcement.sounds.get(event)
         if sound is None:
             return
-        _LOGGER.info("Grid %s: playing %s on %s", event, sound[ATTR_MEDIA_CONTENT_ID], announcement.entity_id)
+        _LOGGER.info("%s: playing %s on %s", event, sound[ATTR_MEDIA_CONTENT_ID], announcement.entity_id)
         target = {ATTR_ENTITY_ID: announcement.entity_id}
+        volume = announcement.battery_volume if event in BATTERY_LEVELS else announcement.volume
         try:
             await self.hass.services.async_call(
                 MEDIA_PLAYER_DOMAIN,
                 SERVICE_VOLUME_SET,
-                {**target, ATTR_MEDIA_VOLUME_LEVEL: min(announcement.volume, MAX_VOLUME_LEVEL)},
+                {**target, ATTR_MEDIA_VOLUME_LEVEL: min(volume, MAX_VOLUME_LEVEL)},
                 blocking=True,
             )
         except HomeAssistantError as err:  # a wrong volume is better than no sound
-            _LOGGER.warning("Grid %s: can't set volume on %s: %s", event, announcement.entity_id, err)
+            _LOGGER.warning("%s: can't set volume on %s: %s", event, announcement.entity_id, err)
         try:
             await self.hass.services.async_call(
                 MEDIA_PLAYER_DOMAIN,
@@ -109,4 +121,4 @@ class Announcer:
                 blocking=True,
             )
         except HomeAssistantError as err:
-            _LOGGER.warning("Grid %s: can't play on %s: %s", event, announcement.entity_id, err)
+            _LOGGER.warning("%s: can't play on %s: %s", event, announcement.entity_id, err)

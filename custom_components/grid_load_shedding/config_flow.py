@@ -20,6 +20,10 @@ from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er, selector
 
 from .const import (
+    BATTERY_LEVELS,
+    CONF_BATTERY_ENTITY,
+    CONF_BATTERY_RESERVE,
+    CONF_BATTERY_VOLUME,
     CONF_ENABLED,
     CONF_FALLBACK_ENTITY,
     CONF_MEDIA_PLAYER,
@@ -27,6 +31,7 @@ from .const import (
     CONF_SOUND_RESTORED,
     CONF_VOLUME,
     DEFAULT_ANNOUNCE_WINDOW,
+    DEFAULT_BATTERY_RESERVE,
     DEFAULT_VOLUME,
     SUBENTRY_ANNOUNCEMENT,
     CONF_HOLD_SECONDS,
@@ -46,6 +51,7 @@ from .const import (
 
 def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
     fallback = defaults.get(CONF_FALLBACK_ENTITY)
+    battery = defaults.get(CONF_BATTERY_ENTITY)
     return vol.Schema(
         {
             vol.Required(CONF_VOLTAGE_ENTITY, default=defaults.get(CONF_VOLTAGE_ENTITY, vol.UNDEFINED)): selector.EntitySelector(
@@ -61,6 +67,17 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_FALLBACK_ENTITY,
                 description={"suggested_value": fallback} if fallback else None,
             ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(
+                CONF_BATTERY_ENTITY,
+                description={"suggested_value": battery} if battery else None,
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.BATTERY)
+            ),
+            vol.Required(
+                CONF_BATTERY_RESERVE, default=defaults.get(CONF_BATTERY_RESERVE, DEFAULT_BATTERY_RESERVE)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=50, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.BOX)
+            ),
         }
     )
 
@@ -197,17 +214,24 @@ class LoadSubentryFlow(ConfigSubentryFlow):
         )
 
 
+_BATTERY_SOUNDS = tuple(f"sound_{level}" for level in reversed(BATTERY_LEVELS))
+
+
 def _announcement_schema(defaults: dict[str, Any]) -> dict:
     """Sounds, volume, window and the on/off flag of a sound notification."""
     sound = selector.MediaSelector(selector.MediaSelectorConfig(accept=["audio/*"]))
+    volume = selector.NumberSelector(
+        selector.NumberSelectorConfig(min=0, max=100, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.SLIDER)
+    )
     return {
         vol.Optional(CONF_SOUND_LOST, description={"suggested_value": defaults.get(CONF_SOUND_LOST)}): sound,
         vol.Optional(CONF_SOUND_RESTORED, description={"suggested_value": defaults.get(CONF_SOUND_RESTORED)}): sound,
-        vol.Required(CONF_VOLUME, default=defaults.get(CONF_VOLUME, DEFAULT_VOLUME)): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=0, max=100, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.SLIDER
-            )
-        ),
+        vol.Required(CONF_VOLUME, default=defaults.get(CONF_VOLUME, DEFAULT_VOLUME)): volume,
+        **{
+            vol.Optional(key, description={"suggested_value": defaults.get(key)}): sound
+            for key in _BATTERY_SOUNDS
+        },
+        vol.Required(CONF_BATTERY_VOLUME, default=defaults.get(CONF_BATTERY_VOLUME, DEFAULT_VOLUME)): volume,
         **_window_schema(defaults),
         vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True)): selector.BooleanSelector(),
     }
@@ -216,10 +240,11 @@ def _announcement_schema(defaults: dict[str, Any]) -> dict:
 def _announcement_data(user_input: dict[str, Any], errors: dict[str, str]) -> dict[str, Any]:
     data: dict[str, Any] = {
         CONF_VOLUME: user_input.get(CONF_VOLUME, DEFAULT_VOLUME),
+        CONF_BATTERY_VOLUME: user_input.get(CONF_BATTERY_VOLUME, DEFAULT_VOLUME),
         CONF_ENABLED: user_input.get(CONF_ENABLED, True),
         **_window_data(user_input, errors),
     }
-    for key in (CONF_SOUND_LOST, CONF_SOUND_RESTORED):
+    for key in (CONF_SOUND_LOST, CONF_SOUND_RESTORED, *_BATTERY_SOUNDS):
         if sound := user_input.get(key):
             data[key] = {k: sound[k] for k in ("media_content_id", "media_content_type")}
     return data
