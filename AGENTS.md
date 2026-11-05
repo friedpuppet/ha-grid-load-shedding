@@ -116,8 +116,8 @@ sensor on this HA instance (see `../electricity.md`).
     (plugs unpowered), went unavailable → pending. On power-up the plugs restored `on` (power-on state `LastState`) and
     each was shed within ~1 s of rejoining Zigbee (21:04:51…21:08:27). The dishwasher (~1.8 kW) rejoined only at
     21:07:14, so it ran ~2.5 min from the battery: nothing can switch a plug that isn't on the network. Setting heavy
-    plugs' `select.*_power_on_state` to `Off` would avoid that (the user's call; then any power blip leaves them off
-    until a restore, and only shed ones are restored).
+    plugs' `select.*_power_on_state` to `Off` would avoid that, but then any power blip leaves them off until a restore.
+    **The user chose (2026-11-05) to keep `LastState`: the risk is acceptable.** Don't suggest it again.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
