@@ -108,7 +108,16 @@ sensor on this HA instance (see `../electricity.md`).
   (plugs behind the dead inverter output restore "on"); off → on by hand is left alone. Tests: `tests/test_unreliable.py`
   (patch `Shedder._call` to fail).
   Installed 2026-11-03 16:02 Kyiv during an outage: the 8-load shed list survived the restart, the plugs came back
-  `off` within a minute. Not yet seen a real lost command or a plug restoring "on" with it.
+  `off` within a minute. Live outages since: 11-04 06:19/09:42/18:44/21:01, 11-05 02:04/08:26/13:15/16:48;
+  every restore emptied the list within ~1 min.
+  - **2026-11-04 21:01:40**: grid lost with ~2.6–3 kW on the inverter (dishwasher heating + air conditioners). The
+    inverter went `fault` → `shutdown` (`sensor.inverter_*_topology`) and its output was 0 until 21:04:42 (overload,
+    `select.inverter_overload_restart` = On restarts it); the ESP rebooted with «Power On». All 8 turn-offs got MAC_NO_ACK
+    (plugs unpowered), went unavailable → pending. On power-up the plugs restored `on` (power-on state `LastState`) and
+    each was shed within ~1 s of rejoining Zigbee (21:04:51…21:08:27). The dishwasher (~1.8 kW) rejoined only at
+    21:07:14, so it ran ~2.5 min from the battery: nothing can switch a plug that isn't on the network. Setting heavy
+    plugs' `select.*_power_on_state` to `Off` would avoid that (the user's call; then any power blip leaves them off
+    until a restore, and only shed ones are restored).
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
 
