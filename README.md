@@ -81,8 +81,8 @@ can be an inverter battery or a phone. Each sound notification then gets four mo
 
 - **Half / quarter charge**: below 50 % and 25 % of the reported charge.
 - **2 hours / 30 minutes left**: charge divided by the discharge rate. The rate is the median
-  over the last 30 minutes of the segments in which the charge fell by one point, so it needs at least three of
-  them, and a battery losing less than 6 %/h gets no estimate.
+  of the last five segments in which the charge fell by one point, within the last 90 minutes. It needs at least
+  three of them, so a battery losing less than 2 %/h gets no estimate.
 - **Battery reserve**: charge the battery can't really give. The time left counts down to this level, not to 0 %.
 
 Each level plays once per discharge, and a restart doesn't repeat it. If several are crossed together, only the most

@@ -3,8 +3,9 @@
 Any entity reporting a charge in percent will do (an inverter battery, a phone), so nothing
 here knows about power, capacity or voltage. The discharge rate comes from the percentage
 itself: every fall of ``SEGMENT_PERCENT`` points is one segment with its own %/h, and the rate
-in use is the median of the segments of the last ``WINDOW``. Fixed points rather than state
-changes, so a sensor reporting 0.1 % steps and a phone reporting whole percents behave alike.
+in use is the median of the last ``MAX_SEGMENTS`` segments within ``WINDOW``: a slow battery
+reporting whole percents still gets an estimate, and a fast one follows a change of load within
+minutes. Fixed points rather than state changes, so a sensor reporting 0.1 % steps and a phone reporting whole percents behave alike.
 Rates between single 0.1 % steps only take the few values the sensor's update period allows.
 
 Each level is announced once per discharge. The passed levels are stored, so a restart in the
@@ -29,9 +30,10 @@ from .const import BATTERY_LEVELS, DOMAIN, RUNTIME_LEVELS, SOC_LEVELS, STORAGE_V
 
 _LOGGER = logging.getLogger(__name__)
 
-WINDOW = timedelta(minutes=30)
+WINDOW = timedelta(minutes=90)
 SEGMENT_PERCENT = 1.0
 MIN_SEGMENTS = 3
+MAX_SEGMENTS = 5
 REARM_PERCENT = 5.0  # a level comes back only after the battery really charged, not on a grid blink
 SAVE_DELAY = 10
 PRUNE_INTERVAL = timedelta(minutes=1)
@@ -64,7 +66,7 @@ class BatteryMonitor:
         self.soc: float | None = None
         self.passed: set[str] = set()
         self._on_level = on_level
-        self._segments: deque[tuple[datetime, float]] = deque()  # end of segment, %/h
+        self._segments: deque[tuple[datetime, float]] = deque(maxlen=MAX_SEGMENTS)  # end of segment, %/h
         self._anchor: tuple[datetime, float] | None = None  # start of the current segment
         self._low: float | None = None  # lowest charge since the runtime levels were re-armed
         self._listeners: list[CALLBACK_TYPE] = []

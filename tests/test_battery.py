@@ -79,6 +79,24 @@ async def test_needs_three_segments(hass: HomeAssistant, freezer: FrozenDateTime
     battery.async_stop()
 
 
+async def test_slow_whole_percent_battery_gets_an_estimate(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    battery, _ = await start(hass, 97, reserve=20)
+    await discharge(hass, freezer, 97, 94, per_hour=4)  # 1 % per 15 min, as the Deye at 600 W
+    assert battery.median_rate == pytest.approx(4)
+    assert battery.runtime_minutes == pytest.approx((94 - 20) / 4 * 60)
+    battery.async_stop()
+
+
+async def test_follows_a_change_of_load(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    battery, _ = await start(hass, 90)
+    soc = await discharge(hass, freezer, 90, 80, per_hour=6)
+    await discharge(hass, freezer, soc, soc - 3, per_hour=30)  # 6 minutes later
+    assert battery.median_rate == pytest.approx(30)
+    battery.async_stop()
+
+
 async def test_median_ignores_a_burst(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     battery, _ = await start(hass, 90)
     soc = await discharge(hass, freezer, 90, 87)
@@ -92,7 +110,7 @@ async def test_old_segments_expire(hass: HomeAssistant, freezer: FrozenDateTimeF
     battery, _ = await start(hass, 90)
     await discharge(hass, freezer, 90, 80)
     assert battery.median_rate is not None
-    freezer.tick(timedelta(minutes=31))
+    freezer.tick(timedelta(minutes=91))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert battery.median_rate is None
