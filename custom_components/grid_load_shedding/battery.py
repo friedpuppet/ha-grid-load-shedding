@@ -5,7 +5,8 @@ here knows about power, capacity or voltage. The discharge rate comes from the p
 itself: every fall of ``SEGMENT_PERCENT`` points is one segment with its own %/h, and the rate
 in use is the median of the last ``MAX_SEGMENTS`` segments within ``WINDOW``: a slow battery
 reporting whole percents still gets an estimate, and a fast one follows a change of load within
-minutes. Fixed points rather than state changes, so a sensor reporting 0.1 % steps and a phone reporting whole percents behave alike.
+minutes. Fixed points rather than state changes, so a sensor reporting 0.1 % steps and a phone
+reporting whole percents behave alike.
 Rates between single 0.1 % steps only take the few values the sensor's update period allows.
 
 Each level is announced once per discharge. The passed levels are stored, so a restart in the
