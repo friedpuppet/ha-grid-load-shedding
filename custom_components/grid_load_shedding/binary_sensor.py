@@ -10,7 +10,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import GridLoadSheddingConfigEntry
 from .entity import GridEntity
-from .grid import GridMonitor
+from .grid import CityGridMonitor, GridMonitor
 
 
 async def async_setup_entry(
@@ -18,7 +18,12 @@ async def async_setup_entry(
     entry: GridLoadSheddingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    async_add_entities([GridBinarySensor(entry, entry.runtime_data.monitor)])
+    async_add_entities(
+        [
+            GridBinarySensor(entry, entry.runtime_data.monitor),
+            CityGridBinarySensor(entry, entry.runtime_data.city),
+        ]
+    )
 
 
 class GridBinarySensor(GridEntity, BinarySensorEntity, RestoreEntity):
@@ -52,3 +57,28 @@ class GridBinarySensor(GridEntity, BinarySensorEntity, RestoreEntity):
     @callback
     def _on_change(self, old: bool | None, new: bool | None) -> None:
         self.async_write_ha_state()
+
+
+class CityGridBinarySensor(GridEntity, BinarySensorEntity):
+    """On while there is voltage at the supply, whether or not the inverter accepts it."""
+
+    _attr_device_class = BinarySensorDeviceClass.POWER
+
+    def __init__(self, entry: GridLoadSheddingConfigEntry, monitor: CityGridMonitor) -> None:
+        super().__init__(entry, "city_grid")
+        self._monitor = monitor
+
+    @property
+    def is_on(self) -> bool | None:
+        return self._monitor.is_on
+
+    @property
+    def available(self) -> bool:
+        return self._monitor.is_on is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | float | None]:
+        return {"source": self._monitor.source, "voltage": self._monitor.voltage}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self._monitor.async_add_listener(self.async_write_ha_state))

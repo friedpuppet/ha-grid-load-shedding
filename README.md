@@ -9,14 +9,31 @@ don't drain the battery, and turns the same ones back on once the grid has been 
 
 ## How it decides "grid is present"
 
-- **Voltage sensor**: grid is present while it is above a threshold, typically the inverter's
-  grid-input voltage (e.g. 170 V, the lowest the inverter accepts in UPS mode).
-- **Short dropouts**: inverter Wi-Fi bridges drop out now and then. While the voltage sensor is
-  `unavailable`, the last state is held for *hold time* (default 30 s).
-- **Fallback**: after the hold time, an optional fallback binary sensor decides. A good one is a
-  ping of a device powered *before* the inverter, which goes dark during an outage. With no fallback,
-  or with the fallback unavailable too, the Grid sensor becomes `unavailable` instead of `off`, so a dead
-  sensor is never mistaken for an outage.
+"Grid" means **the flat runs from the grid**: the inverter is in bypass, not on its battery.
+
+- **Voltage sensor**: the inverter's grid-input voltage. At or below the threshold (typically the
+  inverter's grid low-voltage protection) the inverter runs from its battery: Grid goes off at once.
+- **Bypass sensor** (optional, recommended): a binary sensor that is on while the inverter actually runs
+  from the grid, e.g. its grid relay. With it, Grid is on only while the voltage is above the threshold
+  **and** the bypass sensor is on, so loads come back only once the inverter has switched over, not as
+  soon as the voltage returns (inverters wait a while before reconnecting). The bypass sensor going off
+  also turns Grid off.
+- **Short dropouts**: inverter Wi-Fi bridges drop out now and then. While the inverter is `unavailable`,
+  the last state is held for *hold time* (default 30 s). Nothing is switched on from a held state.
+- **Can't see the inverter**: after the hold time, Grid becomes `unavailable` and no load is touched.
+  If the outage turns out to have started meanwhile (on → unavailable → off), the loads are shed then.
+- **Fallback** (optional, not recommended): a binary sensor that decides after the hold time instead of
+  `unavailable`. Don't use one that depends on the same network as the inverter (e.g. a ping): when Home
+  Assistant loses that network, the fallback says "off" and the loads are shed while the grid is fine.
+
+### City grid (informational)
+
+A second sensor, **City grid**, shows whether there is voltage at the supply at all, whether or not the
+inverter accepts it: during a brownout it is on while Grid is off. It is on while an optional supply meter
+(before any voltage relay and the inverter) or the inverter reads above *City grid present above*
+(default 100 V). A meter reading older than *Meter reading valid for* (default 60 s) counts as none,
+because a mains-powered meter that lost power keeps its last state for minutes. It never sheds or
+restores loads.
 
 ## What it does with loads
 
@@ -93,7 +110,8 @@ crossed outside the window is skipped, not delayed.
 
 | Entity | Purpose |
 |---|---|
-| `binary_sensor.<name>_grid` | Grid present (device class `power`). The `source` attribute shows what decided: `voltage`, `hold` or `fallback`. |
+| `binary_sensor.<name>_grid` | Flat on grid power, the inverter in bypass (device class `power`). The `source` attribute shows what decided: `voltage`, `relay` (the bypass sensor), `hold` or `fallback`. |
+| `binary_sensor.<name>_city_grid` | Voltage at the supply (informational). Attributes `source` (`meter` or `inverter`) and `voltage`. |
 | `sensor.<name>_shed_loads` | How many loads are off because of the outage. The `entities` attribute lists them. |
 | `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced). |
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |

@@ -83,6 +83,9 @@ class Shedder:
         self._cancel_recheck: CALLBACK_TYPE | None = None
         self._pending: dict[str, str] = {}  # entity_id -> service not yet confirmed
         self._running = False
+        # Restart with loads to restore while the grid state is only the restored (held) one:
+        # restore once a live source confirms the grid, not on the remembered state.
+        self._restore_on_live = False
         self._unsubs: list[CALLBACK_TYPE] = []
         self._listeners: list[Callable[[], None]] = []
 
@@ -118,7 +121,10 @@ class Shedder:
                 )
             )
         if (self.shed or self.missed) and self.monitor.is_on:
-            self._schedule_restore()
+            if self.monitor.source == "hold":
+                self._restore_on_live = True
+            else:
+                self._schedule_restore()
 
     @callback
     def async_stop(self) -> None:
@@ -143,10 +149,21 @@ class Shedder:
 
     # --- grid -----------------------------------------------------------
 
+    def _grid_live_on(self) -> bool:
+        """Grid on per a live reading, not a held one (nothing is switched on blind)."""
+        return self.monitor.is_on is True and self.monitor.source != "hold"
+
     @callback
     def _async_grid_changed(self, old: bool | None, new: bool | None) -> None:
+        if new is not True:
+            self._restore_on_live = False
         if old == new:
-            return  # only the deciding source changed
+            # Only the deciding source changed; a held state after a restart turning live counts.
+            if new is True and self._restore_on_live and self.monitor.source != "hold":
+                self._restore_on_live = False
+                if self.shed or self.missed:
+                    self._schedule_restore()
+            return
         if new is True:
             # The restore turns shed loads on; a turn-off still pending for them is moot now.
             for entity_id in self.shed:
@@ -159,7 +176,10 @@ class Shedder:
         for entity_id, service in list(self._pending.items()):
             if service == _TURN_ON:
                 del self._pending[entity_id]  # stays in the shed list for the next restore
-        if old is True and new is False:
+        # Shed on a real loss, also when it is seen only after a spell of "unknown"
+        # (on -> unknown -> off), but not after off -> unknown -> off: loads turned on by hand
+        # during the outage stay on.
+        if new is False and (old is True or (old is None and self.monitor.known_before is True)):
             self.hass.async_create_task(self.async_shed())
 
     async def async_shed(self) -> None:
@@ -228,7 +248,7 @@ class Shedder:
 
     @callback
     def _async_window_start(self, load: Load) -> None:
-        if self.monitor.is_on:
+        if self._grid_live_on():
             _LOGGER.info("Window start: turning on %s", load.entity_id)
             self.hass.async_create_task(self._switch(_TURN_ON, [load.entity_id]))
         elif load.entity_id not in self.missed:
@@ -247,7 +267,7 @@ class Shedder:
         was = self.scheduled.get(load_id, True)
         self.scheduled[load_id] = value
         load = self.loads.get(load_id)
-        if value and not was and load is not None and load.window and self.monitor.is_on:
+        if value and not was and load is not None and load.window and self._grid_live_on():
             if in_window(dt_util.now().time(), load.window):
                 self.hass.async_create_task(self._switch(_TURN_ON, [load.entity_id]))
 
@@ -300,8 +320,10 @@ class Shedder:
 
     async def _async_restore_timer(self, _now) -> None:
         self._cancel_restore = None
-        if self.monitor.is_on:
+        if self._grid_live_on():
             await self.async_restore()
+        elif self.monitor.is_on:
+            self._restore_on_live = True  # held state: restore once the inverter is seen again
 
     @callback
     def _cancel_restore_timer(self) -> None:

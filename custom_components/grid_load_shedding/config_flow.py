@@ -24,8 +24,14 @@ from .const import (
     CONF_BATTERY_ENTITY,
     CONF_BATTERY_RESERVE,
     CONF_BATTERY_VOLUME,
+    CONF_BYPASS_ENTITY,
+    CONF_CITY_THRESHOLD,
     CONF_ENABLED,
     CONF_FALLBACK_ENTITY,
+    CONF_METER_FRESH_SECONDS,
+    CONF_METER_VOLTAGE_ENTITY,
+    DEFAULT_CITY_THRESHOLD,
+    DEFAULT_METER_FRESH_SECONDS,
     CONF_MEDIA_PLAYER,
     CONF_SOUND_LOST,
     CONF_SOUND_RESTORED,
@@ -51,6 +57,8 @@ from .const import (
 
 def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
     fallback = defaults.get(CONF_FALLBACK_ENTITY)
+    bypass = defaults.get(CONF_BYPASS_ENTITY)
+    meter = defaults.get(CONF_METER_VOLTAGE_ENTITY)
     battery = defaults.get(CONF_BATTERY_ENTITY)
     return vol.Schema(
         {
@@ -64,9 +72,29 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
                 selector.NumberSelectorConfig(min=0, max=3600, step=1, unit_of_measurement="s", mode=selector.NumberSelectorMode.BOX)
             ),
             vol.Optional(
+                CONF_BYPASS_ENTITY,
+                description={"suggested_value": bypass} if bypass else None,
+            ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(
                 CONF_FALLBACK_ENTITY,
                 description={"suggested_value": fallback} if fallback else None,
             ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(
+                CONF_METER_VOLTAGE_ENTITY,
+                description={"suggested_value": meter} if meter else None,
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.VOLTAGE)
+            ),
+            vol.Required(
+                CONF_METER_FRESH_SECONDS, default=defaults.get(CONF_METER_FRESH_SECONDS, DEFAULT_METER_FRESH_SECONDS)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=5, max=3600, step=1, unit_of_measurement="s", mode=selector.NumberSelectorMode.BOX)
+            ),
+            vol.Required(
+                CONF_CITY_THRESHOLD, default=defaults.get(CONF_CITY_THRESHOLD, DEFAULT_CITY_THRESHOLD)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=500, step=1, unit_of_measurement="V", mode=selector.NumberSelectorMode.BOX)
+            ),
             vol.Optional(
                 CONF_BATTERY_ENTITY,
                 description={"suggested_value": battery} if battery else None,

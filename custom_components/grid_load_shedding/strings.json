@@ -9,15 +9,23 @@
           "voltage_entity": "Grid voltage sensor",
           "threshold": "Grid present above",
           "hold_seconds": "Hold state while the voltage sensor is unavailable",
+          "bypass_entity": "Inverter on grid (bypass) sensor",
           "fallback_entity": "Fallback grid sensor",
+          "meter_voltage_entity": "Supply voltage meter",
+          "meter_fresh_seconds": "Meter reading valid for",
+          "city_threshold": "City grid present above",
           "battery_entity": "Battery",
           "battery_reserve": "Battery reserve"
         },
         "data_description": {
           "voltage_entity": "Grid is present while this voltage is above the threshold.",
-          "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. 170 V in UPS mode).",
+          "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. its grid low-voltage protection).",
           "hold_seconds": "Short dropouts of the voltage sensor keep the last state for this long.",
-          "fallback_entity": "Optional binary sensor that is on while the grid is present (e.g. ping of a device powered before the inverter). Used once the voltage sensor has been unavailable longer than the hold time.",
+          "bypass_entity": "Optional binary sensor that is on while the inverter actually runs from the grid (e.g. its grid relay). Then loads are restored only once it is on, not as soon as the voltage is back.",
+          "fallback_entity": "Optional binary sensor that is on while the grid is present. Used once the inverter has been unavailable longer than the hold time. Leave it empty if it depends on the same network as the inverter: otherwise losing that network looks like a grid outage and sheds the loads.",
+          "meter_voltage_entity": "Optional. A meter at the supply, before any voltage relay and the inverter, for the City grid sensor. It never sheds or restores loads.",
+          "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
+          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
           "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
         }
@@ -34,11 +42,21 @@
           "voltage_entity": "Grid voltage sensor",
           "threshold": "Grid present above",
           "hold_seconds": "Hold state while the voltage sensor is unavailable",
+          "bypass_entity": "Inverter on grid (bypass) sensor",
           "fallback_entity": "Fallback grid sensor",
+          "meter_voltage_entity": "Supply voltage meter",
+          "meter_fresh_seconds": "Meter reading valid for",
+          "city_threshold": "City grid present above",
           "battery_entity": "Battery",
           "battery_reserve": "Battery reserve"
         },
         "data_description": {
+          "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. its grid low-voltage protection).",
+          "bypass_entity": "Optional binary sensor that is on while the inverter actually runs from the grid (e.g. its grid relay). Then loads are restored only once it is on, not as soon as the voltage is back.",
+          "fallback_entity": "Optional binary sensor that is on while the grid is present. Used once the inverter has been unavailable longer than the hold time. Leave it empty if it depends on the same network as the inverter: otherwise losing that network looks like a grid outage and sheds the loads.",
+          "meter_voltage_entity": "Optional. A meter at the supply, before any voltage relay and the inverter, for the City grid sensor. It never sheds or restores loads.",
+          "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
+          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
           "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
         }
@@ -179,6 +197,9 @@
     "binary_sensor": {
       "grid": {
         "name": "Grid"
+      },
+      "city_grid": {
+        "name": "City grid"
       }
     },
     "sensor": {

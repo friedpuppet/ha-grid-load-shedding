@@ -9,6 +9,12 @@ CONF_VOLTAGE_ENTITY: Final = "voltage_entity"
 CONF_THRESHOLD: Final = "threshold"
 CONF_HOLD_SECONDS: Final = "hold_seconds"
 CONF_FALLBACK_ENTITY: Final = "fallback_entity"
+CONF_BYPASS_ENTITY: Final = "bypass_entity"  # binary_sensor, on while the inverter is on grid (e.g. its grid relay)
+
+# "City grid" sensor: voltage at the supply, whether or not the inverter accepts it (informational)
+CONF_METER_VOLTAGE_ENTITY: Final = "meter_voltage_entity"  # e.g. a Zigbee meter before the inverter, optional
+CONF_METER_FRESH_SECONDS: Final = "meter_fresh_seconds"
+CONF_CITY_THRESHOLD: Final = "city_threshold"
 
 CONF_BATTERY_ENTITY: Final = "battery_entity"  # any sensor with a charge in percent, optional
 CONF_BATTERY_RESERVE: Final = "battery_reserve"  # percent the battery can't actually give
@@ -17,6 +23,8 @@ DEFAULT_THRESHOLD: Final = 170.0
 DEFAULT_HOLD_SECONDS: Final = 30
 DEFAULT_RESTORE_DELAY: Final = 60
 DEFAULT_BATTERY_RESERVE: Final = 0
+DEFAULT_METER_FRESH_SECONDS: Final = 60
+DEFAULT_CITY_THRESHOLD: Final = 100.0
 
 # Load subentries
 SUBENTRY_LOAD: Final = "load"

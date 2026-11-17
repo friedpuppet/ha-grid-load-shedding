@@ -21,7 +21,13 @@ from .const import (
     CONF_BATTERY_RESERVE,
     CONF_BATTERY_VOLUME,
     CONF_ENABLED,
+    CONF_BYPASS_ENTITY,
+    CONF_CITY_THRESHOLD,
     CONF_FALLBACK_ENTITY,
+    CONF_METER_FRESH_SECONDS,
+    CONF_METER_VOLTAGE_ENTITY,
+    DEFAULT_CITY_THRESHOLD,
+    DEFAULT_METER_FRESH_SECONDS,
     CONF_MEDIA_PLAYER,
     CONF_SOUND_LOST,
     CONF_SOUND_RESTORED,
@@ -44,7 +50,7 @@ from .const import (
     SERVICE_RESTORE_NOW,
     SUBENTRY_LOAD,
 )
-from .grid import GridMonitor
+from .grid import CityGridMonitor, GridMonitor
 from .shedder import Load, Shedder
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
@@ -55,6 +61,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 @dataclass
 class RuntimeData:
     monitor: GridMonitor
+    city: CityGridMonitor
     shedder: Shedder
     announcer: Announcer
     battery: BatteryMonitor | None
@@ -96,6 +103,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
         threshold=opts.get(CONF_THRESHOLD, DEFAULT_THRESHOLD),
         hold_seconds=opts.get(CONF_HOLD_SECONDS, DEFAULT_HOLD_SECONDS),
         fallback_entity=opts.get(CONF_FALLBACK_ENTITY) or None,
+        bypass_entity=opts.get(CONF_BYPASS_ENTITY) or None,
+    )
+    city = CityGridMonitor(
+        hass,
+        inverter_entity=opts[CONF_VOLTAGE_ENTITY],
+        meter_entity=opts.get(CONF_METER_VOLTAGE_ENTITY) or None,
+        threshold=opts.get(CONF_CITY_THRESHOLD, DEFAULT_CITY_THRESHOLD),
+        fresh_seconds=opts.get(CONF_METER_FRESH_SECONDS, DEFAULT_METER_FRESH_SECONDS),
     )
     shedder = Shedder(hass, entry.entry_id, monitor)
     await shedder.async_load()
@@ -141,17 +156,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
             )
     _apply_flags(entry, shedder, announcer, startup=True)
 
-    entry.runtime_data = RuntimeData(monitor, shedder, announcer, battery, _signature(entry))
+    entry.runtime_data = RuntimeData(monitor, city, shedder, announcer, battery, _signature(entry))
 
     # Entities restore their state (grid, flags, delay) before the logic starts acting.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     monitor.async_start()
+    city.async_start()
     shedder.async_start()
     announcer.async_start()
     if battery:
         battery.async_start()
         entry.async_on_unload(battery.async_stop)
     entry.async_on_unload(monitor.async_stop)
+    entry.async_on_unload(city.async_stop)
     entry.async_on_unload(shedder.async_stop)
     entry.async_on_unload(announcer.async_stop)
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
