@@ -30,6 +30,12 @@ sensor on this HA instance (see `../electricity.md`).
   `1408580017`), entry «Мережа» `01M4AZ6M70PVSKY7XEM7G7YMC9`, 18 load subentries. The boiler has a
   01:00–07:00 window. The cutover from the old template/automation setup is done (see `PLAN.md` and
   `../electricity.md`).
+  - **Live options since 2026-11-16 (Deye migration):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
+    threshold 184 V (Deye's grid low-voltage protection), hold 30 s, fallback `binary_sensor.esp_svitlobot_pinger_local`,
+    battery `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC). Changed via the options
+    flow REST API, no restart. Known flaw found the same day: a Core restart without LAN shed 7 plugs (Ping fallback
+    depends on HA's LAN); see `../electricity.md`. The user wants to revisit it (two sensors: "flat on grid power" vs
+    "city grid present").
   - Live entity_ids: Grid is renamed to `binary_sensor.e_elektrika`; Shed loads to
     `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
     `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
@@ -122,7 +128,7 @@ sensor on this HA instance (see `../electricity.md`).
   current. `Shedder` ignores those.
 
 - **Battery sounds (v0.5.0, live since 2026-11-03)**: the battery is one percentage entity, an abstraction on purpose
-  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 %, the six
+  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, reserve 20 %), the six
   `media_source/local/battery_*_ostap.mp3` files (from `sounds/battery-alpha/`) on «VLC-TELNET», battery volume 80 %
   (the grid sounds are also at 80 % now). Entities `sensor.merezha_battery_runtime`,
   `button.vitalnia_vlc_telnet_test_sound_battery_*`. All six test buttons played (VLC at 0.8, no errors) during the
