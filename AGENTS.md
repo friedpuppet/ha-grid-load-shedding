@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.7.0** (GitHub release + tag, 2026-11-17, not yet installed on the live HA; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.8.0** (GitHub release + tag, 2026-11-17, installed on the live HA the same day; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -30,12 +30,22 @@ sensor on this HA instance (see `../electricity.md`).
   `1408580017`), entry «Мережа» `01M4AZ6M70PVSKY7XEM7G7YMC9`, 18 load subentries. The boiler has a
   01:00–07:00 window. The cutover from the old template/automation setup is done (see `PLAN.md` and
   `../electricity.md`).
-  - **Live options since 2026-11-16 (Deye migration):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
-    threshold 184 V (Deye's grid low-voltage protection), hold 30 s, fallback `binary_sensor.esp_svitlobot_pinger_local`,
-    battery `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC). Changed via the options
-    flow REST API, no restart. Known flaw found the same day: a Core restart without LAN shed 7 plugs (Ping fallback
-    depends on HA's LAN); see `../electricity.md`. The user wants to revisit it (two sensors: "flat on grid power" vs
-    "city grid present").
+  - **Live options since 2026-11-17 (v0.8.0):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
+    threshold 184 V (Deye's grid low-voltage protection), hold 30 s, **bypass** `binary_sensor.vkhidna_zona_deye_inverter_grid`
+    (Deye's grid relay, register 0x00C2, polled every 30 s), **no fallback**, battery
+    `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC), City grid meter
+    `sensor.lichilnik_pered_invertorom_napruga` (fresh 60 s, 100 V). New entity renamed to
+    `binary_sensor.elektrika_vid_mista`. Set via the options flow REST API during a real outage (2026-11-17 from 13:36 UTC):
+    the reload kept the 5-load shed list and nothing was switched.
+  - **The user's principles (2026-11-17), the reason for v0.8.0:** shed when the inverter runs from its battery;
+    restore only once it is really in bypass (voltage above the threshold **and** relay on); if HA can't see the inverter,
+    do nothing (no ping, no Zigbee meter for decisions). On 2026-11-16 a Core restart left the HA box without LAN, the Ping
+    fallback (same LAN) said off and 7 plugs were shed while the grid was fine. The Zigbee meter only feeds the
+    informational City grid sensor. Don't reintroduce a LAN-dependent fallback.
+  - Not yet seen live: a grid return with the relay gating the restore; the "HA blind" case (planned controlled test:
+    disable the solarman entry for ~1 min, expect `e_elektrika` unavailable and no switching).
+  - Tests: `tests/test_bypass.py`. The sound test-button tests are flaky (~1 in 20 full runs, `test_test_buttons_ignore_window`
+    / `test_test_button_uses_the_battery_volume`), also before v0.8.0; not investigated.
   - Live entity_ids: Grid is renamed to `binary_sensor.e_elektrika`; Shed loads to
     `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
     `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
@@ -62,7 +72,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 | Path | What |
 |---|---|
-| `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage → hold timer → fallback). No entities, unit-testable. |
+| `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage + optional bypass relay → hold timer → optional fallback → unknown); `known_before` tells on→unknown→off from off→unknown→off. `CityGridMonitor`: informational supply voltage (meter freshness by `last_reported`, re-checked every 10 s). No entities, unit-testable. |
 | `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
 | `.../battery.py` | `BatteryMonitor`: time left and level crossings from one percentage sensor, persisted `passed` (`Store`, key `grid_load_shedding.<entry_id>.battery`). |
 | `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change. |
