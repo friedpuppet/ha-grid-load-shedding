@@ -34,6 +34,4 @@ make() { # name text
 make battery_soc_50_ostap "У батареї лишилась половина заряду."
 make battery_soc_25_ostap "У батареї лишилась чверть заряду."
 make battery_runtime_120_ostap "Батареї вистачить на дві години."
-make battery_runtime_60_ostap "Батареї вистачить на одну годину."
 make battery_runtime_30_ostap "Батареї вистачить на пів години."
-make battery_runtime_10_ostap "Батареї вистачить на десять хвилин."

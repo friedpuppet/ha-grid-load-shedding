@@ -118,9 +118,7 @@
             "sound_soc_50": "Sound: battery half charge",
             "sound_soc_25": "Sound: battery quarter charge",
             "sound_runtime_120": "Sound: battery 2 hours left",
-            "sound_runtime_60": "Sound: battery 1 hour left",
-            "sound_runtime_30": "Sound: battery 30 minutes left",
-            "sound_runtime_10": "Sound: battery 10 minutes left"
+            "sound_runtime_30": "Sound: battery 30 minutes left"
           },
           "data_description": {
             "sound_lost": "Optional. Without a sound, grid loss is not announced.",
@@ -133,9 +131,7 @@
             "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
             "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
             "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_60": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_10": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
+            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
           }
         },
         "reconfigure": {
@@ -152,9 +148,7 @@
             "sound_soc_50": "Sound: battery half charge",
             "sound_soc_25": "Sound: battery quarter charge",
             "sound_runtime_120": "Sound: battery 2 hours left",
-            "sound_runtime_60": "Sound: battery 1 hour left",
-            "sound_runtime_30": "Sound: battery 30 minutes left",
-            "sound_runtime_10": "Sound: battery 10 minutes left"
+            "sound_runtime_30": "Sound: battery 30 minutes left"
           },
           "data_description": {
             "sound_lost": "Optional. Without a sound, grid loss is not announced.",
@@ -167,9 +161,7 @@
             "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
             "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
             "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_60": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_10": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
+            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
           }
         }
       },
@@ -236,23 +228,11 @@
       "test_sound_runtime_120_named": {
         "name": "Test sound on {player}: battery 2 hours left"
       },
-      "test_sound_runtime_60": {
-        "name": "Test sound: battery 1 hour left"
-      },
-      "test_sound_runtime_60_named": {
-        "name": "Test sound on {player}: battery 1 hour left"
-      },
       "test_sound_runtime_30": {
         "name": "Test sound: battery 30 minutes left"
       },
       "test_sound_runtime_30_named": {
         "name": "Test sound on {player}: battery 30 minutes left"
-      },
-      "test_sound_runtime_10": {
-        "name": "Test sound: battery 10 minutes left"
-      },
-      "test_sound_runtime_10_named": {
-        "name": "Test sound on {player}: battery 10 minutes left"
       }
     },
     "switch": {

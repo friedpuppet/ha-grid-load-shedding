@@ -76,11 +76,11 @@ If grid loss should be heard, the speaker and the box running Home Assistant nee
 ### Battery sounds (optional)
 
 Pick a **Battery** in the integration options: any sensor with a charge in percent. Nothing else is needed, so it
-can be an inverter battery or a phone. Each sound notification then gets six more optional sounds and its own
+can be an inverter battery or a phone. Each sound notification then gets four more optional sounds and its own
 **Battery sounds volume**; the window and the on/off switch are the same as for the grid sounds.
 
 - **Half / quarter charge**: below 50 % and 25 % of the reported charge.
-- **2 hours / 1 hour / 30 minutes / 10 minutes left**: charge divided by the discharge rate. The rate is the median
+- **2 hours / 30 minutes left**: charge divided by the discharge rate. The rate is the median
   over the last 30 minutes of the segments in which the charge fell by one point, so it needs at least three of
   them, and a battery losing less than 6 %/h gets no estimate.
 - **Battery reserve**: charge the battery can't really give. The time left counts down to this level, not to 0 %.

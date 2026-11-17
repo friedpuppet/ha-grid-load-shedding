@@ -120,7 +120,7 @@ async def test_reserve_shortens_the_runtime(hass: HomeAssistant, freezer: Frozen
 async def test_each_level_once_in_order(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     battery, levels = await start(hass, 60)
     await discharge(hass, freezer, 60, 1, per_hour=18)
-    assert levels == ["soc_50", "runtime_120", "soc_25", "runtime_60", "runtime_30", "runtime_10"]
+    assert levels == ["soc_50", "runtime_120", "soc_25", "runtime_30"]
     battery.async_stop()
 
 
@@ -129,7 +129,7 @@ async def test_jump_to_zero_says_only_the_most_urgent(hass: HomeAssistant, freez
     await discharge(hass, freezer, 60, 51)
     hass.states.async_set(BATTERY, "0")
     await hass.async_block_till_done()
-    assert levels == ["runtime_10"]
+    assert levels == ["runtime_30"]
     assert battery.passed == set(BATTERY_LEVELS)
     battery.async_stop()
 
@@ -169,13 +169,13 @@ async def test_grid_blink_does_not_repeat(hass: HomeAssistant, freezer: FrozenDa
 async def test_real_charge_rearms(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     battery, levels = await start(hass, 60)
     await discharge(hass, freezer, 60, 1, per_hour=18)
-    assert "runtime_10" in levels and "soc_50" in levels
+    assert "runtime_30" in levels and "soc_50" in levels
     levels.clear()
     hass.states.async_set(BATTERY, "70")
     await hass.async_block_till_done()
     assert battery.median_rate is None  # the old rate is gone with the charge
     await discharge(hass, freezer, 70, 1, per_hour=18)
-    assert levels == ["soc_50", "runtime_120", "soc_25", "runtime_60", "runtime_30", "runtime_10"]
+    assert levels == ["soc_50", "runtime_120", "soc_25", "runtime_30"]
     battery.async_stop()
 
 
@@ -246,9 +246,9 @@ async def test_test_button_uses_the_battery_volume(hass: HomeAssistant, freezer:
     at(freezer, 3)
     entry, player = await setup(hass, 90)
     subentry_id = next(iter(entry.subentries))
-    button = er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{subentry_id}_test_sound_runtime_10")
+    button = er.async_get(hass).async_get_entity_id("button", DOMAIN, f"{subentry_id}_test_sound_runtime_30")
     await hass.services.async_call("button", "press", {ATTR_ENTITY_ID: button}, blocking=True)
-    assert player.played == [SOUNDS["sound_runtime_10"]["media_content_id"]]
+    assert player.played == [SOUNDS["sound_runtime_30"]["media_content_id"]]
     assert player.calls[0]["service_data"]["volume_level"] == 0.7
 
 

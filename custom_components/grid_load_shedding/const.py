@@ -39,7 +39,7 @@ DEFAULT_ANNOUNCE_WINDOW: Final = ("11:00:00", "22:00:00")
 
 # Battery levels; each has an optional sound under the key f"sound_{level}"
 SOC_LEVELS: Final = {"soc_25": 25, "soc_50": 50}  # below this percent
-RUNTIME_LEVELS: Final = {"runtime_10": 10, "runtime_30": 30, "runtime_60": 60, "runtime_120": 120}  # minutes left
+RUNTIME_LEVELS: Final = {"runtime_30": 30, "runtime_120": 120}  # minutes left
 BATTERY_LEVELS: Final = (*RUNTIME_LEVELS, *SOC_LEVELS)  # most urgent first
 
 # Bus events fired for other automations (Telegram etc.)
