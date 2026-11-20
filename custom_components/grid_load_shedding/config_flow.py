@@ -21,7 +21,9 @@ from homeassistant.helpers import entity_registry as er, selector
 
 from .const import (
     BATTERY_LEVELS,
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_ENTITY,
+    CONF_BATTERY_POWER_ENTITY,
     CONF_BATTERY_RESERVE,
     CONF_BATTERY_VOLUME,
     CONF_BYPASS_ENTITY,
@@ -37,6 +39,7 @@ from .const import (
     CONF_SOUND_RESTORED,
     CONF_VOLUME,
     DEFAULT_ANNOUNCE_WINDOW,
+    DEFAULT_BATTERY_CAPACITY,
     DEFAULT_BATTERY_RESERVE,
     DEFAULT_VOLUME,
     SUBENTRY_ANNOUNCEMENT,
@@ -60,6 +63,7 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
     bypass = defaults.get(CONF_BYPASS_ENTITY)
     meter = defaults.get(CONF_METER_VOLTAGE_ENTITY)
     battery = defaults.get(CONF_BATTERY_ENTITY)
+    power = defaults.get(CONF_BATTERY_POWER_ENTITY)
     return vol.Schema(
         {
             vol.Required(CONF_VOLTAGE_ENTITY, default=defaults.get(CONF_VOLTAGE_ENTITY, vol.UNDEFINED)): selector.EntitySelector(
@@ -105,6 +109,17 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
                 CONF_BATTERY_RESERVE, default=defaults.get(CONF_BATTERY_RESERVE, DEFAULT_BATTERY_RESERVE)
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=50, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.BOX)
+            ),
+            vol.Optional(
+                CONF_BATTERY_POWER_ENTITY,
+                description={"suggested_value": power} if power else None,
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
+            ),
+            vol.Required(
+                CONF_BATTERY_CAPACITY, default=defaults.get(CONF_BATTERY_CAPACITY, DEFAULT_BATTERY_CAPACITY)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0.1, max=1000, step=0.1, unit_of_measurement="kWh", mode=selector.NumberSelectorMode.BOX)
             ),
         }
     )

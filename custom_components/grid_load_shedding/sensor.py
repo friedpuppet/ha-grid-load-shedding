@@ -1,7 +1,8 @@
-"""Sensors: the loads turned off because of a grid outage, and the battery's time left."""
+"""Sensors: the loads turned off because of a grid outage, the battery's time left and session."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
@@ -23,6 +24,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [ShedLoadsSensor(entry, entry.runtime_data.shedder)]
     if entry.runtime_data.battery:
         entities.append(BatteryRuntimeSensor(entry, entry.runtime_data.battery))
+        entities.append(BatterySessionSensor(entry, entry.runtime_data.battery))
     async_add_entities(entities)
 
 
@@ -51,8 +53,21 @@ class ShedLoadsSensor(GridEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class BatteryRuntimeSensor(GridEntity, SensorEntity):
-    """Time left at the median discharge rate; unknown until there is a rate."""
+class _BatteryEntity(GridEntity, SensorEntity):
+    def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor, key: str) -> None:
+        super().__init__(entry, key)
+        self._battery = battery
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self._battery.async_add_listener(self._on_change))
+
+    @callback
+    def _on_change(self) -> None:
+        self.async_write_ha_state()
+
+
+class BatteryRuntimeSensor(_BatteryEntity):
+    """Time left at the smoothed power or the median discharge rate; unknown until there is one."""
 
     _attr_icon = "mdi:battery-clock-outline"
     _attr_device_class = SensorDeviceClass.DURATION
@@ -60,8 +75,7 @@ class BatteryRuntimeSensor(GridEntity, SensorEntity):
     _attr_native_unit_of_measurement = UnitOfTime.MINUTES
 
     def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
-        super().__init__(entry, "battery_runtime")
-        self._battery = battery
+        super().__init__(entry, battery, "battery_runtime")
 
     @property
     def native_value(self) -> int | None:
@@ -70,12 +84,45 @@ class BatteryRuntimeSensor(GridEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        rate = self._battery.median_rate
-        return {"median_rate": None if rate is None else round(rate, 1), "passed": sorted(self._battery.passed)}
+        battery = self._battery
+        rate = battery.median_rate
+        attrs: dict[str, Any] = {
+            "median_rate": None if rate is None else round(rate, 1),
+            "passed": sorted(battery.passed),
+        }
+        if battery.uses_power:
+            power, measured = battery.smoothed_power, battery.measured_capacity
+            attrs |= {
+                "method": battery.method,
+                "smoothed_power": None if power is None else round(power),
+                "capacity": battery.capacity,
+                "measured_capacity": None if measured is None else round(measured, 1),
+            }
+        return attrs
 
-    async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self._battery.async_add_listener(self._on_change))
 
-    @callback
-    def _on_change(self) -> None:
-        self.async_write_ha_state()
+class BatterySessionSensor(_BatteryEntity):
+    """Start of the current battery session (grid off); unknown while on the grid."""
+
+    _attr_icon = "mdi:battery-arrow-down-outline"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
+        super().__init__(entry, battery, "battery_session")
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self._battery.session_start
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        battery = self._battery
+        attrs: dict[str, Any] = {
+            "start_soc": battery._session_soc,
+            "previous_start": battery.previous.get("start"),
+            "previous_end": battery.previous.get("end"),
+        }
+        if battery.power_entity:
+            attrs["energy"] = round(battery.session_energy / 1000, 2) if battery.session_start else None
+            attrs["previous_energy"] = battery.previous.get("energy")
+        return attrs

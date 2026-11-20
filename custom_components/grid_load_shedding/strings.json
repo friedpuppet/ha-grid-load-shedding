@@ -15,7 +15,9 @@
           "meter_fresh_seconds": "Meter reading valid for",
           "city_threshold": "City grid present above",
           "battery_entity": "Battery",
-          "battery_reserve": "Battery reserve"
+          "battery_reserve": "Battery reserve",
+          "battery_power_entity": "Battery power",
+          "battery_capacity": "Battery capacity"
         },
         "data_description": {
           "voltage_entity": "Grid is present while this voltage is above the threshold.",
@@ -27,7 +29,9 @@
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
           "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
+          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %.",
+          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the time left during a battery session (grid off) comes from the smoothed power and the capacity, not from how fast the percentage falls.",
+          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current session once the charge has fallen 5 %."
         }
       }
     },
@@ -48,7 +52,9 @@
           "meter_fresh_seconds": "Meter reading valid for",
           "city_threshold": "City grid present above",
           "battery_entity": "Battery",
-          "battery_reserve": "Battery reserve"
+          "battery_reserve": "Battery reserve",
+          "battery_power_entity": "Battery power",
+          "battery_capacity": "Battery capacity"
         },
         "data_description": {
           "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. its grid low-voltage protection).",
@@ -58,7 +64,9 @@
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
           "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %."
+          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %.",
+          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the time left during a battery session (grid off) comes from the smoothed power and the capacity, not from how fast the percentage falls.",
+          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current session once the charge has fallen 5 %."
         }
       }
     }
@@ -208,6 +216,9 @@
       },
       "battery_runtime": {
         "name": "Battery runtime"
+      },
+      "battery_session": {
+        "name": "Battery session"
       }
     },
     "number": {

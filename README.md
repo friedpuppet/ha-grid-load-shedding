@@ -101,6 +101,12 @@ can be an inverter battery or a phone. Each sound notification then gets four mo
   of the last five segments in which the charge fell by one point, within the last 90 minutes. It needs at least
   three of them, so a battery losing less than 2 %/h gets no estimate.
 - **Battery reserve**: charge the battery can't really give. The time left counts down to this level, not to 0 %.
+- **Battery power** and **Battery capacity** (optional, kWh of the full battery): then, during a battery session
+  (Grid off), the time left is the usable charge × capacity / smoothed power instead. The power is averaged per
+  minute, each minute goes through a median of the last 15 minutes (so a kettle or a dip of a few minutes doesn't
+  count) and then through a 45-minute exponential average, which is the plain mean during the first minutes of a
+  session. A load that really changes is followed within about half an hour. The average is reset at each session
+  and survives a restart. If the power sensor is silent for 15 minutes, the percentage method above is used.
 
 Each level plays once per discharge, and a restart doesn't repeat it. If several are crossed together, only the most
 urgent plays. A level comes back after 5 points of real charging, so a short grid blink repeats nothing. A level
@@ -113,7 +119,8 @@ crossed outside the window is skipped, not delayed.
 | `binary_sensor.<name>_grid` | Flat on grid power, the inverter in bypass (device class `power`). The `source` attribute shows what decided: `voltage`, `relay` (the bypass sensor), `hold` or `fallback`. |
 | `binary_sensor.<name>_city_grid` | Voltage at the supply (informational). Attributes `source` (`meter` or `inverter`) and `voltage`. |
 | `sensor.<name>_shed_loads` | How many loads are off because of the outage. The `entities` attribute lists them. |
-| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced). |
+| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced); with a battery power sensor also `method` (`power`/`soc`), `smoothed_power` (W), `capacity` and `measured_capacity` (kWh: the session's energy over its fall of charge, after 5 %). |
+| `sensor.<name>_battery_session` | Only with a battery. Start of the current battery session: Grid went off. Unknown on the grid; Grid unknown (inverter out of sight) doesn't end it. Survives a restart. Attributes: `start_soc`, `previous_start`, `previous_end`; with a battery power sensor `energy` and `previous_energy` (kWh). |
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |
 | `button.<name>_restore_now` | Restore immediately. |
 | `switch.<load>_shed_on_grid_loss` | Per-load flag. |

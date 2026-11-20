@@ -17,7 +17,9 @@ from .announcer import EVENT_LOST, EVENT_RESTORED, Announcement, Announcer
 from .battery import BatteryMonitor
 from .const import (
     BATTERY_LEVELS,
+    CONF_BATTERY_CAPACITY,
     CONF_BATTERY_ENTITY,
+    CONF_BATTERY_POWER_ENTITY,
     CONF_BATTERY_RESERVE,
     CONF_BATTERY_VOLUME,
     CONF_ENABLED,
@@ -32,6 +34,7 @@ from .const import (
     CONF_SOUND_LOST,
     CONF_SOUND_RESTORED,
     CONF_VOLUME,
+    DEFAULT_BATTERY_CAPACITY,
     DEFAULT_BATTERY_RESERVE,
     DEFAULT_VOLUME,
     SUBENTRY_ANNOUNCEMENT,
@@ -125,6 +128,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
             entity_id=battery_entity,
             reserve=opts.get(CONF_BATTERY_RESERVE, DEFAULT_BATTERY_RESERVE),
             on_level=announcer.async_battery_level,
+            power_entity=opts.get(CONF_BATTERY_POWER_ENTITY) or None,
+            capacity=opts.get(CONF_BATTERY_CAPACITY, DEFAULT_BATTERY_CAPACITY),
+            grid=monitor,
         )
         await battery.async_load()
 
