@@ -8,7 +8,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import ATTR_ENTITY_ID, STATE_OFF, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -54,6 +54,7 @@ class Player:
             async_mock_service(hass, "media_player", service)
         hass.bus.async_listen("call_service", self._record)
 
+    @callback  # a plain function runs in the executor, and the calls could be recorded out of order
     def _record(self, event) -> None:
         if event.data["domain"] == "media_player":
             self.calls.append(event.data)

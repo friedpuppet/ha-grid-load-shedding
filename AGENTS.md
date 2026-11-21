@@ -45,8 +45,10 @@ sensor on this HA instance (see `../electricity.md`).
     informational City grid sensor. Don't reintroduce a LAN-dependent fallback.
   - Not yet seen live: a grid return with the relay gating the restore; the "HA blind" case (planned controlled test:
     disable the solarman entry for ~1 min, expect `e_elektrika` unavailable and no switching).
-  - Tests: `tests/test_bypass.py`. The sound test-button tests are flaky (~1 in 20 full runs, `test_test_buttons_ignore_window`
-    / `test_test_button_uses_the_battery_volume`), also before v0.8.0; not investigated.
+  - Tests: `tests/test_bypass.py`. The sound tests were flaky (~1 in 20 full runs in CI: `test_test_buttons_ignore_window`,
+    `test_test_button_uses_the_battery_volume`, `test_grid_sound_keeps_its_volume`). Cause, fixed 2026-11-21: the test
+    `Player` listened to `call_service` with a plain function, which HA runs in the executor, so `volume_set` /
+    `play_media` were sometimes recorded out of order; it is a `@callback` now.
   - Live entity_ids: Grid is renamed to `binary_sensor.e_elektrika`; Shed loads to
     `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
     `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
