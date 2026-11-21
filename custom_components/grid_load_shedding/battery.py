@@ -20,6 +20,9 @@ kettle or a short dip of a few minutes is dropped, and then through an exponenti
 ``POWER_TAU``, bias-corrected so that it is the plain mean during the first minutes of a session.
 Time left = usable charge (charge above the reserve, times the capacity) / smoothed power. If the
 power is stale or missing, the percentage method above is used.
+
+The reserve is a fixed percentage, or the state of a reserve entity when one is set and has a
+number (e.g. the level an inverter actually stops discharging at, which changes with its mode).
 """
 
 from __future__ import annotations
@@ -131,6 +134,7 @@ class BatteryMonitor:
         *,
         entity_id: str,
         reserve: float,
+        reserve_entity: str | None = None,
         on_level: Callable[[str], None],
         power_entity: str | None = None,
         capacity: float | None = None,
@@ -138,7 +142,8 @@ class BatteryMonitor:
     ) -> None:
         self.hass = hass
         self.entity_id = entity_id
-        self.reserve = reserve
+        self.fixed_reserve = reserve
+        self.reserve_entity = reserve_entity
         self.power_entity = power_entity
         self.capacity = capacity  # kWh
         self._grid = grid
@@ -161,6 +166,15 @@ class BatteryMonitor:
         self._listeners: list[CALLBACK_TYPE] = []
         self._unsubs: list[CALLBACK_TYPE] = []
         self._store: Store[dict] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.battery")
+
+    @property
+    def reserve(self) -> float:
+        """The reserve entity's number if there is one, the fixed reserve otherwise."""
+        if self.reserve_entity:
+            state = self.hass.states.get(self.reserve_entity)
+            if (value := _percent(state.state if state else None)) is not None:
+                return value
+        return self.fixed_reserve
 
     @property
     def median_rate(self) -> float | None:
@@ -236,6 +250,10 @@ class BatteryMonitor:
         if self._grid:
             self._unsubs.append(self._grid.async_add_listener(self._async_grid_changed))
             self._follow_grid(self._grid.is_on, now)  # the grid may have changed while HA was down
+        if self.reserve_entity:
+            self._unsubs.append(
+                async_track_state_change_event(self.hass, self.reserve_entity, self._async_reserve_changed)
+            )
         if self.power_entity:
             self._unsubs.append(
                 async_track_state_change_event(self.hass, self.power_entity, self._async_power_changed)
@@ -291,6 +309,10 @@ class BatteryMonitor:
             self.session_start, self._session_soc, self.session_energy = None, None, 0.0
             return True
         return False
+
+    @callback
+    def _async_reserve_changed(self, _event: Event[EventStateChangedData]) -> None:
+        self._notify()
 
     @callback
     def _async_power_changed(self, event: Event[EventStateChangedData]) -> None:

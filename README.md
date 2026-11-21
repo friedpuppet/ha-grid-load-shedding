@@ -101,6 +101,9 @@ can be an inverter battery or a phone. Each sound notification then gets four mo
   of the last five segments in which the charge fell by one point, within the last 90 minutes. It needs at least
   three of them, so a battery losing less than 2 %/h gets no estimate.
 - **Battery reserve**: charge the battery can't really give. The time left counts down to this level, not to 0 %.
+- **Battery reserve entity** (optional): a sensor with the reserve in %, used instead of the fixed reserve while it has a
+  number. For an inverter whose discharge floor changes with its mode (e.g. `battery_mode`'s Discharge floor). The
+  runtime sensor shows the reserve in use as the `reserve` attribute.
 - **Battery power** and **Battery capacity** (optional, kWh of the full battery): then, during a battery session
   (Grid off), the time left is the usable charge × capacity / smoothed power instead. The power is averaged per
   minute, each minute goes through a median of the last 15 minutes (so a kettle or a dip of a few minutes doesn't

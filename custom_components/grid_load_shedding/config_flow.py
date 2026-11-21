@@ -25,6 +25,7 @@ from .const import (
     CONF_BATTERY_ENTITY,
     CONF_BATTERY_POWER_ENTITY,
     CONF_BATTERY_RESERVE,
+    CONF_BATTERY_RESERVE_ENTITY,
     CONF_BATTERY_VOLUME,
     CONF_BYPASS_ENTITY,
     CONF_CITY_THRESHOLD,
@@ -64,6 +65,7 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
     meter = defaults.get(CONF_METER_VOLTAGE_ENTITY)
     battery = defaults.get(CONF_BATTERY_ENTITY)
     power = defaults.get(CONF_BATTERY_POWER_ENTITY)
+    reserve_entity = defaults.get(CONF_BATTERY_RESERVE_ENTITY)
     return vol.Schema(
         {
             vol.Required(CONF_VOLTAGE_ENTITY, default=defaults.get(CONF_VOLTAGE_ENTITY, vol.UNDEFINED)): selector.EntitySelector(
@@ -110,6 +112,10 @@ def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=50, step=1, unit_of_measurement="%", mode=selector.NumberSelectorMode.BOX)
             ),
+            vol.Optional(
+                CONF_BATTERY_RESERVE_ENTITY,
+                description={"suggested_value": reserve_entity} if reserve_entity else None,
+            ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             vol.Optional(
                 CONF_BATTERY_POWER_ENTITY,
                 description={"suggested_value": power} if power else None,

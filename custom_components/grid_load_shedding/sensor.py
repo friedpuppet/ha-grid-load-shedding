@@ -89,6 +89,7 @@ class BatteryRuntimeSensor(_BatteryEntity):
         attrs: dict[str, Any] = {
             "median_rate": None if rate is None else round(rate, 1),
             "passed": sorted(battery.passed),
+            "reserve": battery.reserve,
         }
         if battery.uses_power:
             power, measured = battery.smoothed_power, battery.measured_capacity

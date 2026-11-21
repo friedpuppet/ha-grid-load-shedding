@@ -14,6 +14,7 @@ from custom_components.grid_load_shedding.const import (
     CONF_BATTERY_ENTITY,
     CONF_BATTERY_POWER_ENTITY,
     CONF_BATTERY_RESERVE,
+    CONF_BATTERY_RESERVE_ENTITY,
     CONF_FALLBACK_ENTITY,
 )
 
@@ -29,7 +30,10 @@ def expected(soc: float, power: float, reserve: float = 20, capacity: float = 16
     return (soc - reserve) / 100 * capacity * 1000 / power * 60
 
 
-async def setup(hass: HomeAssistant, soc: float = 90, power: bool = True):
+FLOOR = "sensor.inverter_discharge_floor"
+
+
+async def setup(hass: HomeAssistant, soc: float = 90, power: bool = True, **extra):
     hass.states.async_set(VOLTAGE, "228")
     hass.states.async_set(BATTERY, str(soc))
     hass.states.async_set(POWER, "-500")  # charging on the grid
@@ -40,6 +44,7 @@ async def setup(hass: HomeAssistant, soc: float = 90, power: bool = True):
             CONF_BATTERY_RESERVE: 20,
             CONF_BATTERY_CAPACITY: 16,
             **({CONF_BATTERY_POWER_ENTITY: POWER} if power else {}),
+            **extra,
         },
         loads=(),
     )
@@ -173,3 +178,19 @@ async def test_without_a_power_sensor(hass: HomeAssistant, freezer: FrozenDateTi
     assert hass.states.get(SESSION).state != "unknown"
     assert "method" not in hass.states.get(RUNTIME).attributes
     assert "energy" not in hass.states.get(SESSION).attributes
+
+
+async def test_reserve_from_an_entity(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """The inverter's actual floor moves with its mode; the fixed reserve is the fallback."""
+    hass.states.async_set(FLOOR, "5")
+    await setup(hass, **{CONF_BATTERY_RESERVE_ENTITY: FLOOR})
+    await grid_off(hass)
+    await run(hass, freezer, 30, 650)
+    assert runtime(hass) == pytest.approx(expected(90, 650, reserve=5), rel=0.01)
+    assert hass.states.get(RUNTIME).attributes["reserve"] == 5
+    hass.states.async_set(FLOOR, "35")
+    await hass.async_block_till_done()
+    assert runtime(hass) == pytest.approx(expected(90, 650, reserve=35), rel=0.01)  # at once, not on the next tick
+    hass.states.async_set(FLOOR, "unavailable")
+    await hass.async_block_till_done()
+    assert hass.states.get(RUNTIME).attributes["reserve"] == 20
