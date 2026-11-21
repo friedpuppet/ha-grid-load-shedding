@@ -33,7 +33,8 @@ sensor on this HA instance (see `../electricity.md`).
   - **Live options since 2026-11-17 (v0.8.0):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
     threshold 184 V (Deye's grid low-voltage protection), hold 30 s, **bypass** `binary_sensor.vkhidna_zona_deye_inverter_grid`
     (Deye's grid relay, register 0x00C2, polled every 30 s), **no fallback**, battery
-    `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC), City grid meter
+    `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC; since v0.10.0, 2026-11-21, only the fallback:
+    reserve entity `sensor.batareia_mezha_rozriadu`, battery_mode's Discharge floor), City grid meter
     `sensor.lichilnik_pered_invertorom_napruga` (fresh 60 s, 100 V). New entity renamed to
     `binary_sensor.elektrika_vid_mista`. Set via the options flow REST API during a real outage (2026-11-17 from 13:36 UTC):
     the reload kept the 5-load shed list and nothing was switched.
@@ -138,7 +139,7 @@ sensor on this HA instance (see `../electricity.md`).
   current. `Shedder` ignores those.
 
 - **Battery sounds (v0.5.0, live since 2026-11-03)**: the battery is one percentage entity, an abstraction on purpose
-  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, reserve 20 %), the six
+  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, reserve from `sensor.batareia_mezha_rozriadu`, fallback 20 %), the six
   `media_source/local/battery_*_ostap.mp3` files (from `sounds/battery-alpha/`) on «VLC-TELNET», battery volume 80 %
   (the grid sounds are also at 80 % now). Entities `sensor.merezha_battery_runtime`,
   `button.vitalnia_vlc_telnet_test_sound_battery_*`. All six test buttons played (VLC at 0.8, no errors) during the

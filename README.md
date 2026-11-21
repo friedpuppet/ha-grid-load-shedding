@@ -122,7 +122,7 @@ crossed outside the window is skipped, not delayed.
 | `binary_sensor.<name>_grid` | Flat on grid power, the inverter in bypass (device class `power`). The `source` attribute shows what decided: `voltage`, `relay` (the bypass sensor), `hold` or `fallback`. |
 | `binary_sensor.<name>_city_grid` | Voltage at the supply (informational). Attributes `source` (`meter` or `inverter`) and `voltage`. |
 | `sensor.<name>_shed_loads` | How many loads are off because of the outage. The `entities` attribute lists them. |
-| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced); with a battery power sensor also `method` (`power`/`soc`), `smoothed_power` (W), `capacity` and `measured_capacity` (kWh: the session's energy over its fall of charge, after 5 %). |
+| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left. Attributes: `median_rate` (%/h), `passed` (levels already announced), `reserve` (% in use); with a battery power sensor also `method` (`power`/`soc`), `smoothed_power` (W), `capacity` and `measured_capacity` (kWh: the session's energy over its fall of charge, after 5 %). |
 | `sensor.<name>_battery_session` | Only with a battery. Start of the current battery session: Grid went off. Unknown on the grid; Grid unknown (inverter out of sight) doesn't end it. Survives a restart. Attributes: `start_soc`, `previous_start`, `previous_end`; with a battery power sensor `energy` and `previous_energy` (kWh). |
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |
 | `button.<name>_restore_now` | Restore immediately. |
