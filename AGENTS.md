@@ -9,7 +9,14 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.12.0** (2026-11-22, step 4 of `../battery-split-plan.md`: the sound notifications and the battery moved out to `../power-sounds/` and `../battery-monitor/`; migration 1.1 → 1.2 removes the announcement subentries with their switch and buttons, the battery options, the `sensor.merezha_battery_*` entities and the `.battery` store; v0.11.0 2026-11-22: battery state/sessions from power, floor entity; v0.10.0 2026-11-21: battery reserve entity (`sensor.batareia_mezha_rozriadu`, 30 % with grid: wrong, the user wants the full discharge); v0.9.0 2026-11-20: battery session sensor, time left from smoothed battery power, see README; v0.8.0 installed on the live HA 2026-11-17; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.12.1** (2026-11-22:
+  options-flow descriptions for the voltage sensor and the hold). v0.12.0 (2026-11-22, step 4 of
+  `../battery-split-plan.md`): the sounds and the battery moved out to `../power-sounds/` and `../battery-monitor/`;
+  migration 1.1 → 1.2 removes the announcement subentries with their switch and buttons, the battery options, the
+  `sensor.merezha_battery_*` entities and the `.battery` store. v0.8.0 (2026-11-17) decides from the inverter alone
+  and adds the City grid sensor (below); v0.1.0 had no schedule windows. The battery/sound releases in between
+  (v0.4.0–v0.11.0) are described in `../power-sounds/AGENTS.md` and `../battery-monitor/AGENTS.md`.
+  **Each release bumps both `manifest.json` and `pyproject.toml`.**
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -18,15 +25,15 @@ sensor on this HA instance (see `../electricity.md`).
   fine-grained PAT has a single resource owner.
 - Push without storing the token:
   `git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$(cat ~/.config/github/token-grid-load-shedding)" | base64 -w0)" push`
-- **Personal project, not for the public**: installed only as a HACS *custom repository*. It is
-  deliberately **not** submitted to the HACS default store or to home-assistant/brands. The repo is
-  public only so HACS can fetch it without auth. Don't add publishing chores (HACS-store
+- **Personal project, not for the public**: installed only as a Marketplace (ex-HACS) *custom repository*. It is
+  deliberately **not** submitted to the default store or to home-assistant/brands. The repo is
+  public only so the Marketplace can fetch it without auth. Don't add publishing chores (HACS-store
   requirements, brands PRs, support docs).
 - CI (`.github/workflows/validate.yml`): hassfest + pytest. The `hacs/action` job was removed because
   it only matters for the HACS default store. The brand icon in
   `custom_components/grid_load_shedding/brand/` (`icon.png` 256², `icon@2x.png` 512²) stays, since HA
   shows it in the UI.
-- **Installed on the live HA (2026-10-07, HA 2026.9.4)** via HACS (custom repository, HACS repo id
+- **Installed on the live HA (2026-10-07, HA 2026.9.4)** as a custom repository (Marketplace repo id
   `1408580017`), entry «Мережа» `01M4AZ6M70PVSKY7XEM7G7YMC9`, 18 load subentries. The boiler has a
   01:00–07:00 window. The cutover from the old template/automation setup is done (see `PLAN.md` and
   `../electricity.md`).
@@ -43,10 +50,7 @@ sensor on this HA instance (see `../electricity.md`).
     informational City grid sensor. Don't reintroduce a LAN-dependent fallback.
   - Not yet seen live: a grid return with the relay gating the restore; the "HA blind" case (planned controlled test:
     disable the solarman entry for ~1 min, expect `e_elektrika` unavailable and no switching).
-  - Tests: `tests/test_bypass.py`. The sound tests were flaky (~1 in 20 full runs in CI: `test_test_buttons_ignore_window`,
-    `test_test_button_uses_the_battery_volume`, `test_grid_sound_keeps_its_volume`). Cause, fixed 2026-11-21: the test
-    `Player` listened to `call_service` with a plain function, which HA runs in the executor, so `volume_set` /
-    `play_media` were sometimes recorded out of order; it is a `@callback` now.
+  - Tests: `tests/test_bypass.py`.
   - Live entity_ids: Grid is renamed to `binary_sensor.e_elektrika`; Shed loads to
     `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
     `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
@@ -64,7 +68,7 @@ sensor on this HA instance (see `../electricity.md`).
 | `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage + optional bypass relay → hold timer → optional fallback → unknown); `known_before` tells on→unknown→off from off→unknown→off. `CityGridMonitor`: informational supply voltage (meter freshness by `last_reported`, re-checked every 10 s). No entities, unit-testable. |
 | `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
 | `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change, migrates 1.1 → 1.2. |
-| `.../config_flow.py` | Entry flow (voltage/threshold/hold/fallback), options flow, `load` subentry flow. |
+| `.../config_flow.py` | Entry flow (voltage, threshold, hold, bypass relay, fallback, City grid meter + freshness + threshold), options flow (same fields), `load` subentry flow. |
 | `.../binary_sensor.py` `sensor.py` `number.py` `button.py` | Entities on the entry's own "Grid" service device. |
 | `.../switch.py` | Per-load switches on the *load's* device (`entity.device_entry = async_entity_id_to_device(...)`): "Shed on grid loss" for every load, "Run on schedule" for loads with a window. Unique ids `<subentry_id>_shed_on_grid_loss` / `_run_on_schedule`. |
 | `tests/` | pytest-homeassistant-custom-component. The loads are optimistic template switches. |

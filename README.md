@@ -1,6 +1,6 @@
 # Grid Load Shedding
 
-> Personal project, published only so it can be installed through HACS as a custom repository.
+> Personal project, published only so it can be installed through the Home Assistant Marketplace (formerly HACS) as a custom repository.
 > Use it if it's useful to you, but there's no support and no promise of stability.
 
 A Home Assistant integration for homes with a hybrid inverter or UPS. It detects when utility-grid
@@ -103,8 +103,8 @@ and the battery sensors from the entry; set them up again in those integrations.
 
 ## Installation
 
-HACS → Integrations → ⋮ → Custom repositories → add this repository (category *Integration*) →
-install → restart → Settings → Devices & services → Add integration → *Grid Load Shedding*.
+Settings → Marketplace (HACS before HA 2026.11) → ⋮ → Custom repositories → add this repository (category
+*Integration*) → install → restart → Settings → Devices & services → Add integration → *Grid Load Shedding*.
 
 Requires Home Assistant 2025.3 or newer (config subentries).
 
