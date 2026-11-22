@@ -15,14 +15,12 @@ from homeassistant.setup import async_setup_component
 from custom_components.grid_load_shedding.const import (
     CONF_FALLBACK_ENTITY,
     CONF_HOLD_SECONDS,
-    CONF_MEDIA_PLAYER,
     CONF_SWITCH_ENTITY,
     CONF_THRESHOLD,
     CONF_VOLTAGE_ENTITY,
     CONF_WINDOW_END,
     CONF_WINDOW_START,
     DOMAIN,
-    SUBENTRY_ANNOUNCEMENT,
     SUBENTRY_LOAD,
 )
 
@@ -63,16 +61,14 @@ def make_entry(
     options: dict[str, Any] | None = None,
     loads: tuple[str, ...] = LOADS,
     windows: dict[str, tuple[str, str]] | None = None,
-    announcements: tuple[dict[str, Any], ...] = (),
+    minor_version: int = 2,
 ) -> MockConfigEntry:
-    """Entry with the given loads; ``windows`` maps a load to (start, end).
-
-    ``announcements`` are sound-notification subentry data dicts (with ``media_player``).
-    """
+    """Entry with the given loads; ``windows`` maps a load to (start, end)."""
     windows = windows or {}
     return MockConfigEntry(
         domain=DOMAIN,
         title="Grid",
+        minor_version=minor_version,
         data={},
         options={
             CONF_VOLTAGE_ENTITY: VOLTAGE,
@@ -96,15 +92,6 @@ def make_entry(
                 unique_id=load,
             )
             for load in loads
-        ]
-        + [
-            ConfigSubentryData(
-                data=data,
-                subentry_type=SUBENTRY_ANNOUNCEMENT,
-                title=data[CONF_MEDIA_PLAYER].split(".")[1],
-                unique_id=data[CONF_MEDIA_PLAYER],
-            )
-            for data in announcements
         ],
     )
 

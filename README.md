@@ -72,51 +72,13 @@ load or later with **Reconfigure**; clear both times to remove it. A load with a
 - With **Run on schedule** off, the load behaves like one without a window.
 - Windows may cross midnight (e.g. 23:00–02:00). Times are Home Assistant's local time.
 
-## Sound notifications
+## Sounds and the battery (moved out in 0.12.0)
 
-Add **Add sound notification** under the entry and pick a `media_player` (e.g. VLC playing to a speaker on
-the Home Assistant box). Settings:
-
-- **Sound: grid lost** / **Sound: grid restored**: any audio from the media browser. Upload your own files in
-  *Media → Local media*. Leave one empty to stay silent for that event.
-- **Volume**: set on the player right before each sound.
-- **Play from / Play until**: sounds play only inside this window (local time, may cross midnight). Outside it
-  they are skipped, not delayed, so nights stay quiet. Defaults to 11:00–22:00; clear both for any time.
-- **Sound notifications**: on/off, also a switch on the player's device.
-
-A sound plays when the Grid sensor goes from on to off, and from off to on. Changes to or from `unavailable`
-(a dead voltage sensor and no fallback, or startup) are silent. The player's device also gets **Test sound**
-buttons, which play right away, ignoring the window and the switch.
-
-If grid loss should be heard, the speaker and the box running Home Assistant need to be on a UPS.
-
-### Battery sounds (optional)
-
-Pick a **Battery** in the integration options: any sensor with a charge in percent. Nothing else is needed, so it
-can be an inverter battery or a phone. Each sound notification then gets four more optional sounds and its own
-**Battery sounds volume**; the window and the on/off switch are the same as for the grid sounds.
-
-- **Half / quarter charge**: below 50 % and 25 % of the reported charge.
-- **2 hours / 30 minutes left**: charge divided by the discharge rate. The rate is the median
-  of the last five segments in which the charge fell by one point, within the last 90 minutes. It needs at least
-  three of them, so a battery losing less than 2 %/h gets no estimate.
-- **Battery floor** (optional): an entity with the charge in % the battery is discharged to, e.g. the inverter's
-  shutdown SOC (the full discharge). The time left counts down to it; while it has no number the last known one is
-  used, 0 % if there never was one. The runtime sensor shows it as the `floor` attribute.
-- **Battery power** and **Battery capacity** (optional, kWh of the full battery): then the battery's **state** comes
-  from the power: the 5-minute time-weighted mean above 100 W is discharging, below −100 W charging, within ±60 W idle,
-  in between the previous state; two readings in a row beyond ±300 W switch at once, and the state holds while the
-  reading stays beyond ±100 W the same way. A **session** is the time the battery stays in one state; the grid plays no
-  part. Within a session the power is averaged per minute, each minute goes through a median of the last 15 minutes
-  (so a kettle or a dip of a few minutes doesn't count) and then through a 45-minute exponential average, which is the
-  plain mean during the first minutes of a session. The average starts over with each session and survives a restart.
-  While discharging, the time left = charge above the floor × capacity / smoothed power; while charging, the time to
-  full = charge below 100 % × capacity / smoothed power. While the power sensor has no reading, the time left comes
-  from the percentage method above.
-
-Each level plays once per discharge, and a restart doesn't repeat it. If several are crossed together, only the most
-urgent plays. A level comes back after 5 points of real charging, so a short grid blink repeats nothing. A level
-crossed outside the window is skipped, not delayed.
+Sound notifications and the battery analysis used to live here. Since 0.12.0 they are separate integrations:
+[Power Sounds](https://github.com/friedpuppet/ha-power-sounds) (grid lost/restored and battery level sounds; give it
+this integration's Grid sensor) and [Battery Monitor](https://github.com/friedpuppet/ha-battery-monitor) (battery
+state, sessions, time left, time to full). Updating to 0.12.0 removes the old sound notifications, the battery options
+and the battery sensors from the entry; set them up again in those integrations.
 
 ## Entities
 
@@ -125,17 +87,10 @@ crossed outside the window is skipped, not delayed.
 | `binary_sensor.<name>_grid` | Flat on grid power, the inverter in bypass (device class `power`). The `source` attribute shows what decided: `voltage`, `relay` (the bypass sensor), `hold` or `fallback`. |
 | `binary_sensor.<name>_city_grid` | Voltage at the supply (informational). Attributes `source` (`meter` or `inverter`) and `voltage`. |
 | `sensor.<name>_shed_loads` | How many loads are off because of the outage. The `entities` attribute lists them. |
-| `sensor.<name>_battery_runtime` | Only with a battery. Minutes left to the floor; with a battery power sensor only while discharging. Attributes: `median_rate` (%/h), `passed` (levels already announced), `floor` (% in use); with a battery power sensor also `method` (`power`/`soc`), `smoothed_power` (W), `capacity` and `measured_capacity` (kWh: the discharge session's energy over its fall of charge, after 5 %). |
-| `sensor.<name>_battery_time_to_full` | Only with a battery power sensor. Minutes to 100 % while charging. Attribute `smoothed_power`. |
-| `sensor.<name>_battery_state` | Only with a battery power sensor. `discharging` / `charging` / `idle` (enum). Attributes `since` (start of the session) and `mean_power` (W, 5-minute mean). |
-| `sensor.<name>_battery_session` | Only with a battery power sensor. Start of the current session (the battery's present state). Survives a restart. Attributes: `state`, `start_soc`, `energy` (kWh moved so far), `previous_state`, `previous_start`, `previous_end`, `previous_energy`. |
 | `number.<name>_restore_delay` | Seconds the grid must be back before restoring (default 60). |
 | `button.<name>_restore_now` | Restore immediately. |
 | `switch.<load>_shed_on_grid_loss` | Per-load flag. |
 | `switch.<load>_run_on_schedule` | Only for loads with a window. The window is in the `window_start`/`window_end` attributes. |
-| `switch.<player>_sound_notifications` | Per sound notification. The window is in the attributes. |
-| `button.<player>_test_sound_grid_lost` / `_grid_restored` | Play the sound now. |
-| `button.<player>_test_sound_battery_*` | Only with a battery: the same for each battery level, at the battery volume. |
 
 ## Services and events
 

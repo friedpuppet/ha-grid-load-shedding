@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.11.0** (2026-11-22, the user's rules: the battery's state and sessions come from the battery power (discharging/charging/idle, the hysteresis of the old `sensor.batareia_stan` template), not from the grid; time left and time to full from the smoothed power, the percentage only as a fallback; the floor is an entity, the inverter's shutdown SOC (the full discharge, independent of mode), no fixed reserve and no reserve entity any more; v0.10.0 2026-11-21: battery reserve entity (`sensor.batareia_mezha_rozriadu`, 30 % with grid: wrong, the user wants the full discharge); v0.9.0 2026-11-20: battery session sensor, time left from smoothed battery power, see README; v0.8.0 installed on the live HA 2026-11-17; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.12.0** (2026-11-22, step 4 of `../battery-split-plan.md`: the sound notifications and the battery moved out to `../power-sounds/` and `../battery-monitor/`; migration 1.1 → 1.2 removes the announcement subentries with their switch and buttons, the battery options, the `sensor.merezha_battery_*` entities and the `.battery` store; v0.11.0 2026-11-22: battery state/sessions from power, floor entity; v0.10.0 2026-11-21: battery reserve entity (`sensor.batareia_mezha_rozriadu`, 30 % with grid: wrong, the user wants the full discharge); v0.9.0 2026-11-20: battery session sensor, time left from smoothed battery power, see README; v0.8.0 installed on the live HA 2026-11-17; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -32,9 +32,7 @@ sensor on this HA instance (see `../electricity.md`).
   `../electricity.md`).
   - **Live options since 2026-11-17 (v0.8.0):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
     threshold 184 V (Deye's grid low-voltage protection), hold 30 s, **bypass** `binary_sensor.vkhidna_zona_deye_inverter_grid`
-    (Deye's grid relay, register 0x00C2, polled every 30 s), **no fallback**, battery
-    `sensor.vkhidna_zona_deye_inverter_battery`, floor `number.vkhidna_zona_deye_inverter_battery_shutdown_soc`
-    (since v0.11.0), power `sensor.vkhidna_zona_deye_inverter_battery_power`, capacity 15 kWh, City grid meter
+    (Deye's grid relay, register 0x00C2, polled every 30 s), **no fallback**, City grid meter
     `sensor.lichilnik_pered_invertorom_napruga` (fresh 60 s, 100 V). New entity renamed to
     `binary_sensor.elektrika_vid_mista`. Set via the options flow REST API during a real outage (2026-11-17 from 13:36 UTC):
     the reload kept the 5-load shed list and nothing was switched.
@@ -53,22 +51,10 @@ sensor on this HA instance (see `../electricity.md`).
     `sensor.vimkneno_cherez_vidkliuchennia`; `number.merezha_restore_delay`,
     `button.merezha_restore_now`. Per-load switches are `switch.<area>_<plug>_shed_on_grid_loss` /
     `_run_on_schedule`: HA 2026.9 builds entity_ids from the *English* name plus the area.
-  - **Updating**: release a new version (bump `manifest.json`), then HACS → update → restart Core.
-    Via WS: `hacs/repository/download` with `repository: "1408580017"` and `version: "vX.Y.Z"`.
-  - **Sound notifications (v0.4.0, 2026-10-07)**: subentry «VLC-TELNET» on `media_player.vlc_telnet` (VLC add-on
-    `core_vlc`, output = analog jack `rk3528-acodec`, a small speaker is plugged in). Sounds (since 2026-10-07)
-    `media-source://media_source/local/grid_lost_ostap_6.mp3` / `grid_restored_polina_8.mp3`, the only files in
-    `/var/lib/homeassistant/media/`. Each one is a synthesized three-strike bell chime (lost: descending tritone
-    dyads, dark; restored: ascending major arpeggio, bright) followed by an edge-tts voice (uk-UA Ostap / Polina,
-    rate +10%): «Електрика пропала.» / «Електрика повернулась.». Chime and voice were loudness-matched by EBU R128
-    LUFS, but on this small speaker Polina still sounds quieter, so the restored file is deliberately hotter
-    (−15.2 vs −19.6 LUFS, peak −0.4 dBFS: no headroom left). The user chose to leave it as is. Volume 80 % (was 50 %, confirmed
-    audible), window 11:00–22:00. Entities: `switch.vitalnia_vlc_telnet_sound_notifications`,
-    `button.vitalnia_vlc_telnet_test_sound_grid_{lost,restored}`. VLC has no `MEDIA_ANNOUNCE`; the integration
-    calls `volume_set` before each `play_media`. `vlc_telnet` sends `volume_level * 500` but aiovlc accepts only 0..499, so 1.0 fails: the announcer caps it at 0.99, and
-    a failed `volume_set` no longer stops the sound. Both test sounds confirmed audible. The speaker is powered from
-    an inverter-backed outlet, so it keeps working through an outage (except after the battery is empty and the
-    inverter has shut down). Not yet heard on a real outage.
+  - **Updating**: release a new version (bump `manifest.json`), then Marketplace → update → restart Core.
+    Via WS: `marketplace/repository/install` with `repository: "1408580017"` and `version: "vX.Y.Z"`.
+  - **Sounds and battery: moved out in v0.12.0** (2026-11-22). Sound history (VLC quirks, the files, loudness) is in
+    `../power-sounds/AGENTS.md`; battery analysis in `../battery-monitor/`.
   - Not yet seen a real outage with the integration (the old automation handled 2026-10-07 09:01–12:05 Kyiv).
 
 ## Layout
@@ -77,12 +63,10 @@ sensor on this HA instance (see `../electricity.md`).
 |---|---|
 | `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage + optional bypass relay → hold timer → optional fallback → unknown); `known_before` tells on→unknown→off from off→unknown→off. `CityGridMonitor`: informational supply voltage (meter freshness by `last_reported`, re-checked every 10 s). No entities, unit-testable. |
 | `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
-| `.../battery.py` | `BatteryMonitor`: level crossings from one percentage sensor; with a power sensor the battery state (hysteresis), sessions per state, time left / time to full from smoothed power. Persisted `passed`, floor, session, smoother (`Store`, key `grid_load_shedding.<entry_id>.battery`). |
-| `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change. |
+| `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change, migrates 1.1 → 1.2. |
 | `.../config_flow.py` | Entry flow (voltage/threshold/hold/fallback), options flow, `load` subentry flow. |
 | `.../binary_sensor.py` `sensor.py` `number.py` `button.py` | Entities on the entry's own "Grid" service device. |
 | `.../switch.py` | Per-load switches on the *load's* device (`entity.device_entry = async_entity_id_to_device(...)`): "Shed on grid loss" for every load, "Run on schedule" for loads with a window. Unique ids `<subentry_id>_shed_on_grid_loss` / `_run_on_schedule`. |
-| `scripts/make_battery_sounds.sh`, `sounds/battery-alpha/` | Generates the battery sounds (edge-tts Ostap +10 %, ffmpeg chime, −19.6 LUFS). |
 | `tests/` | pytest-homeassistant-custom-component. The loads are optimistic template switches. |
 
 ## Design notes
@@ -139,19 +123,6 @@ sensor on this HA instance (see `../electricity.md`).
     **The user chose (2026-11-05) to keep `LastState`: the risk is acceptable.** Don't suggest it again.
 - Grid listeners are also called on source-only changes (`old == new`), so the `source` attribute stays
   current. `Shedder` ignores those.
-
-- **Battery sounds (v0.5.0, live since 2026-11-03)**: the battery is one percentage entity, an abstraction on purpose
-  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, floor = Deye's shutdown SOC since v0.11.0), the six
-  `media_source/local/battery_*_ostap.mp3` files (from `sounds/battery-alpha/`) on «VLC-TELNET», battery volume 80 %
-  (the grid sounds are also at 80 % now). Entities `sensor.merezha_battery_runtime`,
-  `button.vitalnia_vlc_telnet_test_sound_battery_*`. All six test buttons played (VLC at 0.8, no errors) during the
-  2026-11-03 outage; not yet heard from a real level crossing.
-  - The rate comes from segments of a 1-point fall, not from every state: `battery_soc` updates in ticks, so single 0.1 %
-    steps kept the median at 18 %/h with a real 21 %/h.
-  - Replay of real history through `BatteryMonitor`, reserve 0 (the user's choice, 2026-11-03): 11-02 gave half 10:59, 2 h
-    11:45, quarter 12:18, 1 h 13:08, 10 min 13:20; 10-30 gave half 20:33, 2 h 20:53, quarter 21:48, 10 min 22:01. So 30 min
-    (and on 10-30 also 1 h) never played. The battery died with 12–22 % shown, `battery_soc` then jumped to 0, and that jump
-    plays only "10 min". The inverter switched off about 10 min after it (13:31, 22:11). Reserve 15 % plays all levels on both days.
 
 ## Dev
 

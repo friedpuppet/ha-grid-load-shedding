@@ -13,11 +13,7 @@
           "fallback_entity": "Fallback grid sensor",
           "meter_voltage_entity": "Supply voltage meter",
           "meter_fresh_seconds": "Meter reading valid for",
-          "city_threshold": "City grid present above",
-          "battery_entity": "Battery",
-          "battery_floor_entity": "Battery floor",
-          "battery_power_entity": "Battery power",
-          "battery_capacity": "Battery capacity"
+          "city_threshold": "City grid present above"
         },
         "data_description": {
           "voltage_entity": "Grid is present while this voltage is above the threshold.",
@@ -27,11 +23,7 @@
           "fallback_entity": "Optional binary sensor that is on while the grid is present. Used once the inverter has been unavailable longer than the hold time. Leave it empty if it depends on the same network as the inverter: otherwise losing that network looks like a grid outage and sheds the loads.",
           "meter_voltage_entity": "Optional. A meter at the supply, before any voltage relay and the inverter, for the City grid sensor. It never sheds or restores loads.",
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
-          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
-          "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_floor_entity": "Optional. The charge in % the battery is discharged to, e.g. the inverter's shutdown SOC (the full discharge). The time left counts down to it; while it has no number the last known one is used, 0 % without one.",
-          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the battery's state (discharging, charging, idle), its sessions, the time left and the time to full come from the smoothed power and the capacity, not from how fast the percentage falls.",
-          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current discharge once the charge has fallen 5 %."
+          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage."
         }
       }
     },
@@ -50,11 +42,7 @@
           "fallback_entity": "Fallback grid sensor",
           "meter_voltage_entity": "Supply voltage meter",
           "meter_fresh_seconds": "Meter reading valid for",
-          "city_threshold": "City grid present above",
-          "battery_entity": "Battery",
-          "battery_floor_entity": "Battery floor",
-          "battery_power_entity": "Battery power",
-          "battery_capacity": "Battery capacity"
+          "city_threshold": "City grid present above"
         },
         "data_description": {
           "threshold": "Usually the inverter's lowest accepted grid voltage (e.g. its grid low-voltage protection).",
@@ -62,11 +50,7 @@
           "fallback_entity": "Optional binary sensor that is on while the grid is present. Used once the inverter has been unavailable longer than the hold time. Leave it empty if it depends on the same network as the inverter: otherwise losing that network looks like a grid outage and sheds the loads.",
           "meter_voltage_entity": "Optional. A meter at the supply, before any voltage relay and the inverter, for the City grid sensor. It never sheds or restores loads.",
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
-          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
-          "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_floor_entity": "Optional. The charge in % the battery is discharged to, e.g. the inverter's shutdown SOC (the full discharge). The time left counts down to it; while it has no number the last known one is used, 0 % without one.",
-          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the battery's state (discharging, charging, idle), its sessions, the time left and the time to full come from the smoothed power and the capacity, not from how fast the percentage falls.",
-          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current discharge once the charge has fallen 5 %."
+          "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage."
         }
       }
     }
@@ -121,84 +105,6 @@
       "abort": {
         "reconfigure_successful": "The load was updated."
       }
-    },
-    "announcement": {
-      "entry_type": "Sound notification",
-      "initiate_flow": {
-        "user": "Add sound notification",
-        "reconfigure": "Reconfigure"
-      },
-      "step": {
-        "user": {
-          "title": "Add sound notification",
-          "description": "Play a sound on this media player when the grid is lost and when it comes back. Upload your own audio files in Media → Local media.",
-          "data": {
-            "media_player": "Media player",
-            "sound_lost": "Sound: grid lost",
-            "sound_restored": "Sound: grid restored",
-            "volume": "Volume",
-            "window_start": "Play from",
-            "window_end": "Play until",
-            "enabled": "Sound notifications",
-            "battery_volume": "Battery sounds volume",
-            "sound_soc_50": "Sound: battery half charge",
-            "sound_soc_25": "Sound: battery quarter charge",
-            "sound_runtime_120": "Sound: battery 2 hours left",
-            "sound_runtime_30": "Sound: battery 30 minutes left"
-          },
-          "data_description": {
-            "sound_lost": "Optional. Without a sound, grid loss is not announced.",
-            "sound_restored": "Optional. Without a sound, the grid's return is not announced.",
-            "volume": "Set on the player right before each sound.",
-            "window_start": "Sounds play only inside this window (local time); outside it they are skipped, e.g. to keep the night quiet. Leave both empty to play at any time.",
-            "window_end": "May be earlier than the start (window crosses midnight).",
-            "enabled": "Also available as a switch on the player's device.",
-            "battery_volume": "Set on the player right before each battery sound, separately from the grid sounds.",
-            "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
-          }
-        },
-        "reconfigure": {
-          "title": "Sound notification settings",
-          "description": "Settings for {player}. Clear both window times to play at any time.",
-          "data": {
-            "sound_lost": "Sound: grid lost",
-            "sound_restored": "Sound: grid restored",
-            "volume": "Volume",
-            "window_start": "Play from",
-            "window_end": "Play until",
-            "enabled": "Sound notifications",
-            "battery_volume": "Battery sounds volume",
-            "sound_soc_50": "Sound: battery half charge",
-            "sound_soc_25": "Sound: battery quarter charge",
-            "sound_runtime_120": "Sound: battery 2 hours left",
-            "sound_runtime_30": "Sound: battery 30 minutes left"
-          },
-          "data_description": {
-            "sound_lost": "Optional. Without a sound, grid loss is not announced.",
-            "sound_restored": "Optional. Without a sound, the grid's return is not announced.",
-            "volume": "Set on the player right before each sound.",
-            "window_start": "Sounds play only inside this window (local time); outside it they are skipped, e.g. to keep the night quiet. Leave both empty to play at any time.",
-            "window_end": "May be earlier than the start (window crosses midnight).",
-            "enabled": "Also available as a switch on the player's device.",
-            "battery_volume": "Set on the player right before each battery sound, separately from the grid sounds.",
-            "sound_soc_50": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_soc_25": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_120": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds.",
-            "sound_runtime_30": "Optional. Needs a battery in the integration options. Each level plays once per discharge, at the same window as the grid sounds."
-          }
-        }
-      },
-      "error": {
-        "already_configured": "This media player already has a sound notification.",
-        "window_incomplete": "Set both the start and the end of the window, or neither.",
-        "window_empty": "The window start and end must differ."
-      },
-      "abort": {
-        "reconfigure_successful": "The sound notification was updated."
-      }
     }
   },
   "entity": {
@@ -213,23 +119,6 @@
     "sensor": {
       "shed_loads": {
         "name": "Shed loads"
-      },
-      "battery_runtime": {
-        "name": "Battery runtime"
-      },
-      "battery_session": {
-        "name": "Battery session"
-      },
-      "battery_state": {
-        "name": "Battery state",
-        "state": {
-          "discharging": "Discharging",
-          "charging": "Charging",
-          "idle": "Idle"
-        }
-      },
-      "battery_time_to_full": {
-        "name": "Battery time to full"
       }
     },
     "number": {
@@ -240,42 +129,6 @@
     "button": {
       "restore_now": {
         "name": "Restore now"
-      },
-      "test_sound_lost": {
-        "name": "Test sound: grid lost"
-      },
-      "test_sound_lost_named": {
-        "name": "Test sound on {player}: grid lost"
-      },
-      "test_sound_restored": {
-        "name": "Test sound: grid restored"
-      },
-      "test_sound_restored_named": {
-        "name": "Test sound on {player}: grid restored"
-      },
-      "test_sound_soc_50": {
-        "name": "Test sound: battery half charge"
-      },
-      "test_sound_soc_50_named": {
-        "name": "Test sound on {player}: battery half charge"
-      },
-      "test_sound_soc_25": {
-        "name": "Test sound: battery quarter charge"
-      },
-      "test_sound_soc_25_named": {
-        "name": "Test sound on {player}: battery quarter charge"
-      },
-      "test_sound_runtime_120": {
-        "name": "Test sound: battery 2 hours left"
-      },
-      "test_sound_runtime_120_named": {
-        "name": "Test sound on {player}: battery 2 hours left"
-      },
-      "test_sound_runtime_30": {
-        "name": "Test sound: battery 30 minutes left"
-      },
-      "test_sound_runtime_30_named": {
-        "name": "Test sound on {player}: battery 30 minutes left"
       }
     },
     "switch": {
@@ -290,12 +143,6 @@
       },
       "run_on_schedule_named": {
         "name": "Run {load} on schedule"
-      },
-      "announce": {
-        "name": "Sound notifications"
-      },
-      "announce_named": {
-        "name": "Sound notifications on {player}"
       }
     }
   },
