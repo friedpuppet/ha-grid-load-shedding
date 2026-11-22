@@ -15,8 +15,7 @@
           "meter_fresh_seconds": "Meter reading valid for",
           "city_threshold": "City grid present above",
           "battery_entity": "Battery",
-          "battery_reserve": "Battery reserve",
-          "battery_reserve_entity": "Battery reserve entity",
+          "battery_floor_entity": "Battery floor",
           "battery_power_entity": "Battery power",
           "battery_capacity": "Battery capacity"
         },
@@ -30,10 +29,9 @@
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
           "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %.",
-          "battery_reserve_entity": "Optional. A sensor with the reserve in %, e.g. the level the inverter actually stops discharging at. Used instead of the fixed reserve while it has a number.",
-          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the time left during a battery session (grid off) comes from the smoothed power and the capacity, not from how fast the percentage falls.",
-          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current session once the charge has fallen 5 %."
+          "battery_floor_entity": "Optional. The charge in % the battery is discharged to, e.g. the inverter's shutdown SOC (the full discharge). The time left counts down to it; while it has no number the last known one is used, 0 % without one.",
+          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the battery's state (discharging, charging, idle), its sessions, the time left and the time to full come from the smoothed power and the capacity, not from how fast the percentage falls.",
+          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current discharge once the charge has fallen 5 %."
         }
       }
     },
@@ -54,8 +52,7 @@
           "meter_fresh_seconds": "Meter reading valid for",
           "city_threshold": "City grid present above",
           "battery_entity": "Battery",
-          "battery_reserve": "Battery reserve",
-          "battery_reserve_entity": "Battery reserve entity",
+          "battery_floor_entity": "Battery floor",
           "battery_power_entity": "Battery power",
           "battery_capacity": "Battery capacity"
         },
@@ -67,10 +64,9 @@
           "meter_fresh_seconds": "A meter reading older than this counts as no reading (a meter that lost power keeps its last state for minutes).",
           "city_threshold": "The City grid sensor is on while the meter or the inverter reads above this voltage.",
           "battery_entity": "Optional. Any sensor with a charge in percent. Adds the battery time-left sensor and the battery sounds of sound notifications.",
-          "battery_reserve": "Charge the battery can't really give: the time left is counted down to this level, not to 0 %.",
-          "battery_reserve_entity": "Optional. A sensor with the reserve in %, e.g. the level the inverter actually stops discharging at. Used instead of the fixed reserve while it has a number.",
-          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the time left during a battery session (grid off) comes from the smoothed power and the capacity, not from how fast the percentage falls.",
-          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current session once the charge has fallen 5 %."
+          "battery_floor_entity": "Optional. The charge in % the battery is discharged to, e.g. the inverter's shutdown SOC (the full discharge). The time left counts down to it; while it has no number the last known one is used, 0 % without one.",
+          "battery_power_entity": "Optional. Battery power in W, positive while discharging. Then the battery's state (discharging, charging, idle), its sessions, the time left and the time to full come from the smoothed power and the capacity, not from how fast the percentage falls.",
+          "battery_capacity": "Energy of the full battery (0–100 %), used with the battery power. The time-left sensor shows the capacity measured in the current discharge once the charge has fallen 5 %."
         }
       }
     }
@@ -223,6 +219,17 @@
       },
       "battery_session": {
         "name": "Battery session"
+      },
+      "battery_state": {
+        "name": "Battery state",
+        "state": {
+          "discharging": "Discharging",
+          "charging": "Charging",
+          "idle": "Idle"
+        }
+      },
+      "battery_time_to_full": {
+        "name": "Battery time to full"
       }
     },
     "number": {

@@ -17,15 +17,13 @@ CONF_METER_FRESH_SECONDS: Final = "meter_fresh_seconds"
 CONF_CITY_THRESHOLD: Final = "city_threshold"
 
 CONF_BATTERY_ENTITY: Final = "battery_entity"  # any sensor with a charge in percent, optional
-CONF_BATTERY_RESERVE: Final = "battery_reserve"  # percent the battery can't actually give
-CONF_BATTERY_RESERVE_ENTITY: Final = "battery_reserve_entity"  # sensor with the reserve in %, optional
+CONF_BATTERY_FLOOR_ENTITY: Final = "battery_floor_entity"  # % the battery is discharged to (inverter's shutdown SOC)
 CONF_BATTERY_POWER_ENTITY: Final = "battery_power_entity"  # W, positive while discharging, optional
 CONF_BATTERY_CAPACITY: Final = "battery_capacity"  # kWh
 
 DEFAULT_THRESHOLD: Final = 170.0
 DEFAULT_HOLD_SECONDS: Final = 30
 DEFAULT_RESTORE_DELAY: Final = 60
-DEFAULT_BATTERY_RESERVE: Final = 0
 DEFAULT_BATTERY_CAPACITY: Final = 16.0
 DEFAULT_METER_FRESH_SECONDS: Final = 60
 DEFAULT_CITY_THRESHOLD: Final = 100.0

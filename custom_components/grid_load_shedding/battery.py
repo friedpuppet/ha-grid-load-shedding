@@ -12,17 +12,21 @@ Rates between single 0.1 % steps only take the few values the sensor's update pe
 Each level is announced once per discharge. The passed levels are stored, so a restart in the
 middle of an outage repeats nothing.
 
-With a battery power sensor and the grid monitor, the time left comes from power instead.
-A battery session is the time the grid monitor says the grid is off; "unknown" (the inverter
-out of sight) neither starts nor ends one. Within a session the power is averaged per minute
-(time-weighted), each minute goes through a median of the last ``MEDIAN_MINUTES`` minutes, so a
-kettle or a short dip of a few minutes is dropped, and then through an exponential average with
-``POWER_TAU``, bias-corrected so that it is the plain mean during the first minutes of a session.
-Time left = usable charge (charge above the reserve, times the capacity) / smoothed power. If the
-power is stale or missing, the percentage method above is used.
+With a battery power sensor and a capacity, the battery's state (discharging, charging, idle)
+comes from the power, and a session is the time the battery stays in one state. The state uses the
+time-weighted mean of the last ``MEAN_WINDOW`` with hysteresis: above ``STATE_ON`` W discharging, below
+−``STATE_ON`` charging, within ±``STATE_IDLE`` idle, in between the previous state; two readings in a row
+beyond ±``STATE_FAST`` switch at once (the mean lags a reversal), and the state is kept while the reading
+stays beyond ±``STATE_ON`` the same way. Within a session the power is averaged per minute (time-weighted),
+each minute goes through a median of the last ``MEDIAN_MINUTES`` minutes, so a kettle or a short dip of a
+few minutes is dropped, and then through an exponential average with ``POWER_TAU``, bias-corrected so that
+it is the plain mean during the first minutes of a session.
+Time left while discharging = charge above the floor × capacity / smoothed power; time to full while
+charging = charge below 100 % × capacity / smoothed power. If the power is stale or missing, the time left
+comes from the percentage method above.
 
-The reserve is a fixed percentage, or the state of a reserve entity when one is set and has a
-number (e.g. the level an inverter actually stops discharging at, which changes with its mode).
+The floor is the state of a floor entity (e.g. the inverter's shutdown SOC, the full discharge); while it
+has no number the last known one is used, 0 % if there never was one.
 """
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ from datetime import datetime, timedelta
 import logging
 import math
 from statistics import median
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
@@ -42,9 +46,6 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import BATTERY_LEVELS, DOMAIN, RUNTIME_LEVELS, SOC_LEVELS, STORAGE_VERSION
-
-if TYPE_CHECKING:
-    from .grid import GridMonitor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +58,13 @@ SAVE_DELAY = 10
 PRUNE_INTERVAL = timedelta(minutes=1)  # also the power bucket and the sensor's update period
 
 POWER_TAU = timedelta(minutes=45)
+MEAN_WINDOW = timedelta(minutes=5)  # for the state
+STATE_ON = 100.0  # W
+STATE_IDLE = 60.0
+STATE_FAST = 300.0
+DISCHARGING, CHARGING, IDLE = "discharging", "charging", "idle"
+BATTERY_STATES = (DISCHARGING, CHARGING, IDLE)
+DIRECTION = {DISCHARGING: 1, CHARGING: -1}
 MEDIAN_MINUTES = 15  # a burst or dip shorter than half of this doesn't reach the average
 MIN_POWER = 50.0  # W; below this the battery isn't really discharging
 POWER_STALE = timedelta(minutes=15)  # no power minute for this long: the average is dropped
@@ -133,28 +141,28 @@ class BatteryMonitor:
         entry_id: str,
         *,
         entity_id: str,
-        reserve: float,
-        reserve_entity: str | None = None,
         on_level: Callable[[str], None],
+        floor_entity: str | None = None,
         power_entity: str | None = None,
         capacity: float | None = None,
-        grid: GridMonitor | None = None,
     ) -> None:
         self.hass = hass
         self.entity_id = entity_id
-        self.fixed_reserve = reserve
-        self.reserve_entity = reserve_entity
+        self.floor_entity = floor_entity
+        self._floor: float | None = None  # last known number of the floor entity
         self.power_entity = power_entity
         self.capacity = capacity  # kWh
-        self._grid = grid
-        # Current battery session: start, charge at the start, energy given so far (Wh)
+        # Current session: the battery's state, its start, charge at the start, energy moved so far (Wh)
+        self.state: str | None = None
         self.session_start: datetime | None = None
         self._session_soc: float | None = None
         self.session_energy = 0.0
-        self.previous: dict[str, Any] = {}  # start, end, energy (kWh) of the last session
+        self.previous: dict[str, Any] = {}  # state, start, end, energy (kWh) of the last session
         self._smoother = PowerSmoother()
         self._power: float | None = None  # W, last reading
         self._power_since: datetime | None = None
+        self._last_power: float | None = None  # the reading before, for two in a row beyond ±STATE_FAST
+        self._samples: deque[tuple[datetime, float | None]] = deque()  # readings within MEAN_WINDOW
         self._bucket = [0.0, 0.0]  # W·s, seconds covered in the current minute
         self._ticks = 0
         self.soc: float | None = None
@@ -168,13 +176,13 @@ class BatteryMonitor:
         self._store: Store[dict] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.battery")
 
     @property
-    def reserve(self) -> float:
-        """The reserve entity's number if there is one, the fixed reserve otherwise."""
-        if self.reserve_entity:
-            state = self.hass.states.get(self.reserve_entity)
+    def floor(self) -> float:
+        """The floor entity's number, the last known one while it has none, else 0."""
+        if self.floor_entity:
+            state = self.hass.states.get(self.floor_entity)
             if (value := _percent(state.state if state else None)) is not None:
-                return value
-        return self.fixed_reserve
+                self._floor = value
+        return self._floor or 0.0
 
     @property
     def median_rate(self) -> float | None:
@@ -185,11 +193,11 @@ class BatteryMonitor:
 
     @property
     def uses_power(self) -> bool:
-        return bool(self.power_entity and self.capacity and self._grid)
+        return bool(self.power_entity and self.capacity)
 
     @property
     def smoothed_power(self) -> float | None:
-        """Smoothed discharge power in W, while in a session and not stale."""
+        """Smoothed power in W in the session's direction (charging is positive too), while not stale."""
         if not self.uses_power or self.session_start is None:
             return None
         updated = self._smoother.updated
@@ -199,12 +207,13 @@ class BatteryMonitor:
 
     @property
     def method(self) -> str:
-        return "power" if self.smoothed_power is not None else "soc"
+        """power while the power sensor has a reading, soc (the percentage's rate) otherwise."""
+        return "power" if self.uses_power and self._power is not None else "soc"
 
     @property
     def measured_capacity(self) -> float | None:
-        """kWh: the session's energy over its fall of charge, once that is large enough."""
-        if self.session_start is None or self._session_soc is None or self.soc is None:
+        """kWh: a discharge session's energy over its fall of charge, once that is large enough."""
+        if self.state != DISCHARGING or self._session_soc is None or self.soc is None:
             return None
         drop = self._session_soc - self.soc
         if drop < MIN_CAPACITY_DROP or self.session_energy <= 0:
@@ -212,30 +221,67 @@ class BatteryMonitor:
         return self.session_energy / drop * 100 / 1000
 
     @property
+    def mean_power(self) -> float | None:
+        """Time-weighted mean of the readings within MEAN_WINDOW, W (positive = discharging)."""
+        now = dt_util.utcnow()
+        start = now - MEAN_WINDOW
+        total = seconds = 0.0
+        samples = list(self._samples)
+        for i, (at, power) in enumerate(samples):
+            end = samples[i + 1][0] if i + 1 < len(samples) else now
+            held = (end - max(at, start)).total_seconds()
+            if power is None or held <= 0:
+                continue
+            total += power * held
+            seconds += held
+        if seconds > 0:
+            return total / seconds
+        return self._power  # a single fresh reading
+
+    def _energy_minutes(self, percent: float) -> float | None:
+        power = self.smoothed_power
+        if power is None or power < MIN_POWER:
+            return None
+        return max(percent, 0.0) / 100 * self.capacity * 1000 / power * 60
+
+    @property
     def runtime_minutes(self) -> float | None:
-        """Time left at the smoothed power or the median rate; 0 once the usable charge is gone."""
+        """Time left to the floor; 0 once the charge above it is gone.
+
+        With a power sensor: at the smoothed power, only while discharging. Without one, or while it
+        has no reading, at the median rate of the percentage.
+        """
         if self.soc is None:
             return None
-        usable = self.soc - self.reserve
+        usable = self.soc - self.floor
         if usable <= 0:
             return 0.0
-        if (power := self.smoothed_power) is not None:
-            if power < MIN_POWER:
-                return None
-            return usable / 100 * self.capacity * 1000 / power * 60
+        if self.method == "power":
+            return self._energy_minutes(usable) if self.state == DISCHARGING else None
         rate = self.median_rate
         return None if rate is None else usable / rate * 60
+
+    @property
+    def time_to_full_minutes(self) -> float | None:
+        """Time to 100 % at the smoothed power, only while charging."""
+        if self.soc is None or self.state != CHARGING:
+            return None
+        return self._energy_minutes(100 - self.soc)
 
     async def async_load(self) -> None:
         data = await self._store.async_load() or {}
         self.passed = set(data.get("passed", [])) & set(BATTERY_LEVELS)
         self._low = data.get("low")
+        self._floor = data.get("floor")
         session = data.get("session") or {}
+        self.state = session.get("state") if session.get("state") in BATTERY_STATES else None
+        if self.state is None:
+            session = {}  # a grid-based session of an older version
         self.session_start = _time(session.get("start"))
         self._session_soc = session.get("soc")
         self.session_energy = session.get("energy", 0.0)
         self.previous = data.get("previous") or {}
-        self._smoother = PowerSmoother.from_dict(data.get("power"))
+        self._smoother = PowerSmoother.from_dict(data.get("power") if self.state else None)
 
     @callback
     def async_start(self) -> None:
@@ -247,12 +293,9 @@ class BatteryMonitor:
         state = self.hass.states.get(self.entity_id)
         if (soc := _percent(state.state if state else None)) is not None:
             self._async_update(soc, now)
-        if self._grid:
-            self._unsubs.append(self._grid.async_add_listener(self._async_grid_changed))
-            self._follow_grid(self._grid.is_on, now)  # the grid may have changed while HA was down
-        if self.reserve_entity:
+        if self.floor_entity:
             self._unsubs.append(
-                async_track_state_change_event(self.hass, self.reserve_entity, self._async_reserve_changed)
+                async_track_state_change_event(self.hass, self.floor_entity, self._async_floor_changed)
             )
         if self.power_entity:
             self._unsubs.append(
@@ -260,6 +303,10 @@ class BatteryMonitor:
             )
             self._power = _watts(self.hass.states.get(self.power_entity))
             self._power_since = now
+            self._samples.append((now, self._power))
+            if self.uses_power:
+                self._follow_power(now)
+                self._notify()
 
     @callback
     def async_stop(self) -> None:
@@ -278,57 +325,91 @@ class BatteryMonitor:
         return {
             "passed": sorted(self.passed),
             "low": self._low,
-            "session": {"start": _iso(self.session_start), "soc": self._session_soc, "energy": self.session_energy},
+            "floor": self._floor,
+            "session": {
+                "state": self.state,
+                "start": _iso(self.session_start),
+                "soc": self._session_soc,
+                "energy": self.session_energy,
+            },
             "previous": self.previous,
             "power": self._smoother.as_dict(),
         }
 
-    @callback
-    def _async_grid_changed(self, old: bool | None, new: bool | None) -> None:
-        if self._follow_grid(new, dt_util.utcnow()):
-            self._store.async_delay_save(self._data, SAVE_DELAY)
-            self._notify()
+    def _new_state(self) -> str | None:
+        """The state from the mean and the last two readings, with hysteresis."""
+        power, last, prev = self._power, self._last_power, self.state
+        if power is not None and last is not None:
+            if power < -STATE_FAST and last < -STATE_FAST:
+                return CHARGING
+            if power > STATE_FAST and last > STATE_FAST:
+                return DISCHARGING
+        if power is not None and (
+            (prev == CHARGING and power < -STATE_ON) or (prev == DISCHARGING and power > STATE_ON)
+        ):
+            return prev
+        if (mean := self.mean_power) is None:
+            return prev
+        if mean > STATE_ON:
+            return DISCHARGING
+        if mean < -STATE_ON:
+            return CHARGING
+        if abs(mean) < STATE_IDLE:
+            return IDLE
+        return prev or IDLE
 
-    def _follow_grid(self, grid: bool | None, now: datetime) -> bool:
-        """Start or end the battery session; return whether it changed."""
-        if grid is False and self.session_start is None:
-            self._accumulate(now)
-            self.session_start, self._session_soc, self.session_energy = now, self.soc, 0.0
-            self._smoother = PowerSmoother()
-            self._bucket = [0.0, 0.0]
-            _LOGGER.info("Battery session started at %s %%", self.soc)
-            return True
-        if grid is True and self.session_start is not None:
-            self._accumulate(now)
+    def _follow_power(self, now: datetime) -> bool:
+        """Start a new session when the state changes; return whether it did."""
+        state = self._new_state()
+        if state is None or state == self.state:
+            return False
+        if self.state is not None and self.session_start is not None:
             self.previous = {
+                "state": self.state,
                 "start": _iso(self.session_start),
                 "end": _iso(now),
-                "energy": round(self.session_energy / 1000, 2) if self.power_entity else None,
+                "energy": round(self.session_energy / 1000, 2),
             }
-            _LOGGER.info("Battery session ended: %s", self.previous)
-            self.session_start, self._session_soc, self.session_energy = None, None, 0.0
-            return True
-        return False
+        _LOGGER.debug("Battery %s at %s %% (was %s)", state, self.soc, self.state)
+        self.state, self.session_start, self._session_soc, self.session_energy = state, now, self.soc, 0.0
+        self._smoother = PowerSmoother()
+        self._bucket = [0.0, 0.0]
+        self._store.async_delay_save(self._data, SAVE_DELAY)
+        return True
 
     @callback
-    def _async_reserve_changed(self, _event: Event[EventStateChangedData]) -> None:
+    def _async_floor_changed(self, _event: Event[EventStateChangedData]) -> None:
         self._notify()
 
     @callback
     def _async_power_changed(self, event: Event[EventStateChangedData]) -> None:
         now = dt_util.utcnow()
         self._accumulate(now)
-        self._power = _watts(event.data["new_state"])
+        power, old = _watts(event.data["new_state"]), self._power
+        if power is not None:
+            self._last_power = old
+        self._power = power
+        self._samples.append((now, power))
+        self._prune_samples(now)
+        changed = self.uses_power and self._follow_power(now)
+        if changed or (power is None) != (old is None):  # a new state, or the method switched
+            self._notify()
+
+    def _prune_samples(self, now: datetime) -> None:
+        # keep the reading that was in force at the window's start
+        while len(self._samples) > 1 and self._samples[1][0] <= now - MEAN_WINDOW:
+            self._samples.popleft()
 
     def _accumulate(self, now: datetime) -> None:
         """Add the last power reading, held since it came, to the minute and the session."""
         since, self._power_since = self._power_since, now
-        if self._power is None or since is None or self.session_start is None:
+        direction = DIRECTION.get(self.state or "")
+        if self._power is None or since is None or self.session_start is None or direction is None:
             return
         seconds = (now - since).total_seconds()
         if seconds <= 0:
             return
-        power = max(self._power, 0.0)
+        power = max(self._power * direction, 0.0)
         self._bucket[0] += power * seconds
         self._bucket[1] += seconds
         self.session_energy += power * seconds / 3600
@@ -342,6 +423,8 @@ class BatteryMonitor:
             self._bucket = [0.0, 0.0]
             if seconds >= MIN_BUCKET_SECONDS:
                 self._smoother.add(energy / seconds, seconds, now)
+            self._prune_samples(now)
+            self._follow_power(now)
             if self.session_start is not None:
                 self._ticks += 1
                 if self._ticks % SAVE_EVERY == 0:

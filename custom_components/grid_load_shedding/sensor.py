@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GridLoadSheddingConfigEntry
-from .battery import BatteryMonitor
+from .battery import BATTERY_STATES, BatteryMonitor
 from .entity import GridEntity
 from .shedder import Shedder
 
@@ -24,7 +24,10 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [ShedLoadsSensor(entry, entry.runtime_data.shedder)]
     if entry.runtime_data.battery:
         entities.append(BatteryRuntimeSensor(entry, entry.runtime_data.battery))
-        entities.append(BatterySessionSensor(entry, entry.runtime_data.battery))
+        if entry.runtime_data.battery.uses_power:
+            entities.append(BatteryStateSensor(entry, entry.runtime_data.battery))
+            entities.append(BatterySessionSensor(entry, entry.runtime_data.battery))
+            entities.append(BatteryTimeToFullSensor(entry, entry.runtime_data.battery))
     async_add_entities(entities)
 
 
@@ -67,7 +70,7 @@ class _BatteryEntity(GridEntity, SensorEntity):
 
 
 class BatteryRuntimeSensor(_BatteryEntity):
-    """Time left at the smoothed power or the median discharge rate; unknown until there is one."""
+    """Time left to the floor while discharging; unknown otherwise or until there is an estimate."""
 
     _attr_icon = "mdi:battery-clock-outline"
     _attr_device_class = SensorDeviceClass.DURATION
@@ -89,7 +92,7 @@ class BatteryRuntimeSensor(_BatteryEntity):
         attrs: dict[str, Any] = {
             "median_rate": None if rate is None else round(rate, 1),
             "passed": sorted(battery.passed),
-            "reserve": battery.reserve,
+            "floor": battery.floor,
         }
         if battery.uses_power:
             power, measured = battery.smoothed_power, battery.measured_capacity
@@ -102,10 +105,62 @@ class BatteryRuntimeSensor(_BatteryEntity):
         return attrs
 
 
-class BatterySessionSensor(_BatteryEntity):
-    """Start of the current battery session (grid off); unknown while on the grid."""
+class BatteryTimeToFullSensor(_BatteryEntity):
+    """Time to 100 % while charging, at the smoothed power; unknown otherwise."""
 
-    _attr_icon = "mdi:battery-arrow-down-outline"
+    _attr_icon = "mdi:battery-charging-high"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+
+    def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
+        super().__init__(entry, battery, "battery_time_to_full")
+
+    @property
+    def native_value(self) -> int | None:
+        minutes = self._battery.time_to_full_minutes
+        return None if minutes is None else round(minutes)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        power = self._battery.smoothed_power if self._battery.state == "charging" else None
+        return {"smoothed_power": None if power is None else round(power)}
+
+
+class BatteryStateSensor(_BatteryEntity):
+    """Discharging, charging or idle, from the battery power with hysteresis."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = list(BATTERY_STATES)
+
+    def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
+        super().__init__(entry, battery, "battery_state")
+
+    @property
+    def native_value(self) -> str | None:
+        return self._battery.state
+
+    @property
+    def icon(self) -> str:
+        return {
+            "discharging": "mdi:battery-arrow-down",
+            "charging": "mdi:battery-charging",
+            "idle": "mdi:battery-outline",
+        }.get(self._battery.state or "", "mdi:battery-unknown")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        mean = self._battery.mean_power
+        return {
+            "since": self._battery.session_start.isoformat() if self._battery.session_start else None,
+            "mean_power": None if mean is None else round(mean),
+        }
+
+
+class BatterySessionSensor(_BatteryEntity):
+    """Start of the current session: the time the battery has been in its present state."""
+
+    _attr_icon = "mdi:timer-play-outline"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(self, entry: GridLoadSheddingConfigEntry, battery: BatteryMonitor) -> None:
@@ -118,12 +173,12 @@ class BatterySessionSensor(_BatteryEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         battery = self._battery
-        attrs: dict[str, Any] = {
+        return {
+            "state": battery.state,
             "start_soc": battery._session_soc,
+            "energy": round(battery.session_energy / 1000, 2) if battery.session_start else None,
+            "previous_state": battery.previous.get("state"),
             "previous_start": battery.previous.get("start"),
             "previous_end": battery.previous.get("end"),
+            "previous_energy": battery.previous.get("energy"),
         }
-        if battery.power_entity:
-            attrs["energy"] = round(battery.session_energy / 1000, 2) if battery.session_start else None
-            attrs["previous_energy"] = battery.previous.get("energy")
-        return attrs

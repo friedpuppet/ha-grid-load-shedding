@@ -9,7 +9,7 @@ sensor on this HA instance (see `../electricity.md`).
 
 ## Status
 
-- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.10.0** (2026-11-21: optional battery reserve entity, the live entry uses `battery_mode`'s `sensor.batareia_mezha_rozriadu`, the inverter's actual discharge floor; v0.9.0 2026-11-20: battery session sensor, time left from smoothed battery power, see README; v0.8.0 installed on the live HA 2026-11-17; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
+- Code and tests are done (`uv run pytest`: all green against HA 2026.8.3). Latest release **v0.11.0** (2026-11-22, the user's rules: the battery's state and sessions come from the battery power (discharging/charging/idle, the hysteresis of the old `sensor.batareia_stan` template), not from the grid; time left and time to full from the smoothed power, the percentage only as a fallback; the floor is an entity, the inverter's shutdown SOC (the full discharge, independent of mode), no fixed reserve and no reserve entity any more; v0.10.0 2026-11-21: battery reserve entity (`sensor.batareia_mezha_rozriadu`, 30 % with grid: wrong, the user wants the full discharge); v0.9.0 2026-11-20: battery session sensor, time left from smoothed battery power, see README; v0.8.0 installed on the live HA 2026-11-17; v0.1.0 had no schedule windows, v0.4.0 added sound notifications, v0.4.1 fixed them at 100 % volume, v0.5.0 added battery sounds, v0.5.1 made switching survive unreliable plugs, v0.6.0 left only the 2 h and 30 min time-left levels at the user's request, v0.7.0 widened the rate window to 90 min with the median of the last 5 segments, because the Deye's whole percents at 4 %/h never filled the 30-min window, v0.8.0 decides from the inverter alone and adds the City grid sensor, see below). Bump `manifest.json` `version` with each release.
 - Repo: **[friedpuppet/ha-grid-load-shedding](https://github.com/friedpuppet/ha-grid-load-shedding)**
   (public), `origin` without credentials. Token: fine-grained PAT, owner `friedpuppet`, this repo only,
   at `~/.config/github/token-grid-load-shedding` (Contents + Workflows RW, Actions RO; **no
@@ -33,8 +33,8 @@ sensor on this HA instance (see `../electricity.md`).
   - **Live options since 2026-11-17 (v0.8.0):** voltage `sensor.vkhidna_zona_deye_inverter_grid_l1_voltage`,
     threshold 184 V (Deye's grid low-voltage protection), hold 30 s, **bypass** `binary_sensor.vkhidna_zona_deye_inverter_grid`
     (Deye's grid relay, register 0x00C2, polled every 30 s), **no fallback**, battery
-    `sensor.vkhidna_zona_deye_inverter_battery`, reserve 20 % (Deye's shutdown SOC; since v0.10.0, 2026-11-21, only the fallback:
-    reserve entity `sensor.batareia_mezha_rozriadu`, battery_mode's Discharge floor), City grid meter
+    `sensor.vkhidna_zona_deye_inverter_battery`, floor `number.vkhidna_zona_deye_inverter_battery_shutdown_soc`
+    (since v0.11.0), power `sensor.vkhidna_zona_deye_inverter_battery_power`, capacity 15 kWh, City grid meter
     `sensor.lichilnik_pered_invertorom_napruga` (fresh 60 s, 100 V). New entity renamed to
     `binary_sensor.elektrika_vid_mista`. Set via the options flow REST API during a real outage (2026-11-17 from 13:36 UTC):
     the reload kept the 5-load shed list and nothing was switched.
@@ -77,7 +77,7 @@ sensor on this HA instance (see `../electricity.md`).
 |---|---|
 | `custom_components/grid_load_shedding/grid.py` | `GridMonitor`: grid-presence state machine (voltage + optional bypass relay → hold timer → optional fallback → unknown); `known_before` tells on→unknown→off from off→unknown→off. `CityGridMonitor`: informational supply voltage (meter freshness by `last_reported`, re-checked every 10 s). No entities, unit-testable. |
 | `.../shedder.py` | `Shedder` + `Load` dataclass: shed on `on → off`, restore after the delay, per-load schedule windows (`async_track_time_change` at start/end), persisted `shed` and `missed` lists (`Store`, key `grid_load_shedding.<entry_id>`). |
-| `.../battery.py` | `BatteryMonitor`: time left and level crossings from one percentage sensor, persisted `passed` (`Store`, key `grid_load_shedding.<entry_id>.battery`). |
+| `.../battery.py` | `BatteryMonitor`: level crossings from one percentage sensor; with a power sensor the battery state (hysteresis), sessions per state, time left / time to full from smoothed power. Persisted `passed`, floor, session, smoother (`Store`, key `grid_load_shedding.<entry_id>.battery`). |
 | `.../__init__.py` | Wires the monitor and shedder into `runtime_data`, registers the `forget`/`restore_now` services, reloads on options or subentry change. |
 | `.../config_flow.py` | Entry flow (voltage/threshold/hold/fallback), options flow, `load` subentry flow. |
 | `.../binary_sensor.py` `sensor.py` `number.py` `button.py` | Entities on the entry's own "Grid" service device. |
@@ -141,7 +141,7 @@ sensor on this HA instance (see `../electricity.md`).
   current. `Shedder` ignores those.
 
 - **Battery sounds (v0.5.0, live since 2026-11-03)**: the battery is one percentage entity, an abstraction on purpose
-  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, reserve from `sensor.batareia_mezha_rozriadu`, fallback 20 %), the six
+  (the user may pick a phone): no power, capacity or voltage. Live: `sensor.batareia_state_of_charge`, reserve 0 % (until 2026-11-16; now the Deye's SOC, floor = Deye's shutdown SOC since v0.11.0), the six
   `media_source/local/battery_*_ostap.mp3` files (from `sounds/battery-alpha/`) on «VLC-TELNET», battery volume 80 %
   (the grid sounds are also at 80 % now). Entities `sensor.merezha_battery_runtime`,
   `button.vitalnia_vlc_telnet_test_sound_battery_*`. All six test buttons played (VLC at 0.8, no errors) during the

@@ -14,7 +14,7 @@ from custom_components.grid_load_shedding.battery import BatteryMonitor
 from custom_components.grid_load_shedding.const import (
     BATTERY_LEVELS,
     CONF_BATTERY_ENTITY,
-    CONF_BATTERY_RESERVE,
+    CONF_BATTERY_FLOOR_ENTITY,
     CONF_BATTERY_VOLUME,
     CONF_VOLUME,
     CONF_WINDOW_END,
@@ -33,14 +33,18 @@ SOUNDS = {
 }
 
 
-def monitor(hass: HomeAssistant, reserve: float = 0) -> tuple[BatteryMonitor, list[str]]:
+FLOOR = "number.inverter_shutdown_soc"
+
+
+def monitor(hass: HomeAssistant, floor: float = 0) -> tuple[BatteryMonitor, list[str]]:
     levels: list[str] = []
-    return BatteryMonitor(hass, "e", entity_id=BATTERY, reserve=reserve, on_level=levels.append), levels
+    hass.states.async_set(FLOOR, str(floor))
+    return BatteryMonitor(hass, "e", entity_id=BATTERY, floor_entity=FLOOR, on_level=levels.append), levels
 
 
-async def start(hass: HomeAssistant, soc: float, reserve: float = 0) -> tuple[BatteryMonitor, list[str]]:
+async def start(hass: HomeAssistant, soc: float, floor: float = 0) -> tuple[BatteryMonitor, list[str]]:
     hass.states.async_set(BATTERY, str(soc))
-    battery, levels = monitor(hass, reserve)
+    battery, levels = monitor(hass, floor)
     await battery.async_load()
     battery.async_start()
     return battery, levels
@@ -82,7 +86,7 @@ async def test_needs_three_segments(hass: HomeAssistant, freezer: FrozenDateTime
 async def test_slow_whole_percent_battery_gets_an_estimate(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
-    battery, _ = await start(hass, 97, reserve=20)
+    battery, _ = await start(hass, 97, floor=20)
     await discharge(hass, freezer, 97, 94, per_hour=4)  # 1 % per 15 min, as the Deye at 600 W
     assert battery.median_rate == pytest.approx(4)
     assert battery.runtime_minutes == pytest.approx((94 - 20) / 4 * 60)
@@ -125,13 +129,17 @@ async def test_idle_stretch_is_not_a_slow_segment(hass: HomeAssistant, freezer: 
     battery.async_stop()
 
 
-async def test_reserve_shortens_the_runtime(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    battery, _ = await start(hass, 60, reserve=15)
+async def test_floor_shortens_the_runtime(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    battery, _ = await start(hass, 60, floor=15)
     await discharge(hass, freezer, 60, 55)
     assert battery.runtime_minutes == pytest.approx((55 - 15) / 12 * 60)
     hass.states.async_set(BATTERY, "14")
     await hass.async_block_till_done()
     assert battery.runtime_minutes == 0
+    hass.states.async_set(FLOOR, "unavailable")  # the inverter out of sight: the last known floor
+    hass.states.async_set(BATTERY, "50")
+    await hass.async_block_till_done()
+    assert battery.floor == 15
     battery.async_stop()
 
 
@@ -216,7 +224,7 @@ async def setup(hass: HomeAssistant, soc: float, **announcement):
     hass.states.async_set(BATTERY, str(soc))
     player = Player(hass)
     entry = make_entry(
-        options={CONF_BATTERY_ENTITY: BATTERY, CONF_BATTERY_RESERVE: 0},
+        options={CONF_BATTERY_ENTITY: BATTERY},
         loads=(),
         announcements=({**ANNOUNCEMENT, **SOUNDS, CONF_BATTERY_VOLUME: 70, **announcement},),
     )
@@ -284,6 +292,7 @@ async def test_without_a_battery_nothing_is_added(hass: HomeAssistant) -> None:
 async def test_options_flow_sets_the_battery(hass: HomeAssistant) -> None:
     hass.states.async_set(VOLTAGE, "228")
     hass.states.async_set(BATTERY, "80", {"device_class": "battery"})
+    hass.states.async_set(FLOOR, "15")
     entry = make_entry(loads=())
     await setup_entry(hass, entry)
     result = await hass.config_entries.options.async_init(entry.entry_id)
@@ -294,12 +303,12 @@ async def test_options_flow_sets_the_battery(hass: HomeAssistant) -> None:
             "threshold": 170,
             "hold_seconds": 30,
             CONF_BATTERY_ENTITY: BATTERY,
-            CONF_BATTERY_RESERVE: 15,
+            CONF_BATTERY_FLOOR_ENTITY: FLOOR,
         },
     )
     await hass.async_block_till_done()
     assert entry.runtime_data.battery.entity_id == BATTERY
-    assert entry.runtime_data.battery.reserve == 15
+    assert entry.runtime_data.battery.floor == 15
 
 
 async def test_announcement_flow_stores_battery_sounds(hass: HomeAssistant) -> None:

@@ -20,8 +20,7 @@ from .const import (
     CONF_BATTERY_CAPACITY,
     CONF_BATTERY_ENTITY,
     CONF_BATTERY_POWER_ENTITY,
-    CONF_BATTERY_RESERVE,
-    CONF_BATTERY_RESERVE_ENTITY,
+    CONF_BATTERY_FLOOR_ENTITY,
     CONF_BATTERY_VOLUME,
     CONF_ENABLED,
     CONF_BYPASS_ENTITY,
@@ -36,7 +35,6 @@ from .const import (
     CONF_SOUND_RESTORED,
     CONF_VOLUME,
     DEFAULT_BATTERY_CAPACITY,
-    DEFAULT_BATTERY_RESERVE,
     DEFAULT_VOLUME,
     SUBENTRY_ANNOUNCEMENT,
     CONF_HOLD_SECONDS,
@@ -127,12 +125,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GridLoadSheddingConfigEn
             hass,
             entry.entry_id,
             entity_id=battery_entity,
-            reserve=opts.get(CONF_BATTERY_RESERVE, DEFAULT_BATTERY_RESERVE),
-            reserve_entity=opts.get(CONF_BATTERY_RESERVE_ENTITY) or None,
             on_level=announcer.async_battery_level,
+            floor_entity=opts.get(CONF_BATTERY_FLOOR_ENTITY) or None,
             power_entity=opts.get(CONF_BATTERY_POWER_ENTITY) or None,
             capacity=opts.get(CONF_BATTERY_CAPACITY, DEFAULT_BATTERY_CAPACITY),
-            grid=monitor,
         )
         await battery.async_load()
 
